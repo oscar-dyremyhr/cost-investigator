@@ -11,6 +11,7 @@ Cost Investigator tracks Databricks spend, recommends what to look at, and autom
 | [Connecting Databricks](connecting-databricks.md) | Replace the sample data with a real account |
 | [Design system](design-system.md) | Build or change a screen |
 | [Limitations](limitations.md) | Know what is simulated, unverified or missing |
+| [Roadmap](roadmap.md) | See what to build next for the POC and the MVP |
 
 ## The one-paragraph version
 
