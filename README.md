@@ -9,7 +9,28 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000 for the landing page, `/onboarding` for the four-step setup flow, `/setup` for the Databricks connection guide, `/pricing` for proposed plans, `/app` for the billing overview, `/investigations` for the billing breakdown, `/jobs` for job-attributed costs, `/budgets` for budget pacing and projected alerts, or `/reports` to create, revisit and compare cost reports.
+Open http://localhost:3000. Everything runs on sample data for a fictional company, Northstar Commerce.
+
+## The app
+
+| Route | What it is | Databricks source |
+| --- | --- | --- |
+| `/app` | Overview: list cost, budget pace, daily spend, open recommendations, firing alerts | `system.billing.usage`, `system.billing.list_prices` |
+| `/investigations` | Billing breakdown by product, SKU, workspace and tags | `system.billing.usage` |
+| `/jobs` | Most expensive jobs and runs, 7-day spend trend, cost of failed runs and repairs | plus `system.lakeflow.jobs`, `system.lakeflow.job_run_timeline` |
+| `/serverless` | Serverless jobs and notebooks by user, workspace, job and notebook; DBUs by performance mode | `usage_metadata`, `identity_metadata.run_as` |
+| `/model-serving` | Cost per endpoint, serving type, start-up DBUs, tag coverage | `usage_metadata.endpoint_name`, `product_features.serving_type` |
+| `/prices` | Default, promotional and effective list price per SKU, and price changes | `system.billing.list_prices` |
+| `/recommendations` | Findings to decide on, each with its rule, query sketch and sample rows | billing, lakeflow and compute tables |
+| `/alerts` | Threshold rules (serverless per workspace, user and job; daily spike; tags) | modelled on the serverless alert queries |
+| `/budgets` | Monthly budget and run-rate projection | |
+| `/reports` | Create, revisit, share and compare cost reports | |
+
+Marketing and setup pages: `/` (landing), `/pricing`, `/onboarding`, `/setup`, and `/styleguide` for the design system.
+
+The app screens share one shell (`src/screens/app/AppShell.tsx`). Cost logic lives in `src/lib` (`alerts.ts`, `serverless.ts`, `budget.ts`, `recommendations.ts`) and is covered by `npm test`. Recommendation decisions and alert thresholds are saved in the browser.
+
+Things the sample deliberately mirrors from the Databricks guides: job cost covers only job compute and serverless (jobs on SQL warehouses or all-purpose compute are not billed as jobs); several features share the serverless jobs SKU and are told apart by `billing_origin_product`; corrections arrive as `RETRACTION` and `RESTATEMENT` rows, so signed quantities are summed. The Databricks examples multiply by `pricing.default`; this app uses `pricing.effective_list.default` so promotions are included. The prices on `/prices` are invented for the demo, and the SQL shown beside recommendations is a sketch that has not been run against a live workspace.
 
 ## What the dashboard models
 
@@ -32,7 +53,8 @@ src/
 ├── app/                    # Next.js routing only; page files render screens
 ├── screens/
 │   ├── marketing/           # Landing, pricing, Databricks setup guide
-│   ├── app/                # Dashboard, billing breakdown, jobs, budgets, onboarding, report history
+│   ├── app/                # App shell, overview, jobs, serverless, model serving, list prices,
+│   │                       # recommendations, alerts, budget, onboarding, report history
 │   └── report/             # Print-ready cost report document and viewer
 ├── content/                # Product copy/configuration, pricing, onboarding and report content
 │   ├── copy.ts              # Central entry point for reusable user-facing content
@@ -47,7 +69,9 @@ src/
 │   ├── tokens.css           # The only place colours are defined (light, dark, print)
 │   └── components/          # Button, StatusPill, BudgetGauge, StatTile, EvidenceCard, Stamp, Stepper,
 │                            # Drawer, Modal, DataTable, PlanCard, EmptyState, Penny, Toast, Term …
-├── lib/                    # Cost report snapshots and formatting helpers
+├── lib/                    # Alert, serverless, budget and recommendation logic; report snapshots; formatting
+├── store/                  # Browser-saved decisions and alert thresholds
+├── test/                   # Vitest unit tests
 └── mocks/
     ├── fixtures/            # Illustrative billing and job data
     └── service.ts           # Single UI data boundary for the mock backend
