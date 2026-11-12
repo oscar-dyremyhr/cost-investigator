@@ -4,8 +4,8 @@ import { Boxes, Database, Layers3, Tags } from "lucide-react";
 import { DataTable, StatTile, Term } from "@/design-system/components";
 import { change, num, usd, usdExact } from "@/lib/format";
 import { afterDiscount, applyDiscounts, discountFor, hasDiscounts } from "@/lib/pricing";
-import { useNegotiatedPrices, useUsage } from "@/lib/use-app-state";
-import { recordTypes } from "@/mocks/service";
+import { workloadHref } from "@/lib/links";
+import { useCache, useNegotiatedPrices, useUsage } from "@/lib/use-app-state";
 import { BarList, DailyBars, Page, PageHeader, SectionCard, SourceNote } from "./parts";
 import { RangePicker } from "./RangePicker";
 
@@ -19,6 +19,7 @@ export default function BillingBreakdown() {
   const { usage, label, previousUsd, previousLabel } = useUsage();
   const delta = previousUsd === null ? undefined : change(usage.totalUsd, previousUsd);
   const perDay = usage.days ? usage.totalUsd / usage.days : 0;
+  const { cache } = useCache();
   const discounts = useNegotiatedPrices();
   const discounted = hasDiscounts(discounts);
   const net = applyDiscounts(usage.products, discounts);
@@ -60,9 +61,9 @@ export default function BillingBreakdown() {
 
       <div className="grid gap-5 xl:grid-cols-2">
         <SectionCard title="By workspace" body="Each workspace’s share of list cost in the range.">
-          <BarList format={usdExact} rows={usage.workspaces.map((w) => ({ key: w.workspaceId, label: w.name, sub: `${w.workspaceId} · ${w.region} · ${w.sharePercent.toFixed(0)}%`, value: w.estimatedListCostUsd }))} />
+          <BarList format={usdExact} rows={usage.workspaces.map((w) => ({ key: w.workspaceId, label: w.name, href: workloadHref("workspace", w.workspaceId), sub: `${w.workspaceId} · ${w.region} · ${w.sharePercent.toFixed(0)}%`, value: w.estimatedListCostUsd }))} />
         </SectionCard>
-        <SectionCard title="How to read this" body={`Cache last refreshed ${recordTypes.latestIngestion}.`}>
+        <SectionCard title="How to read this" body={`Data last refreshed ${cache.refreshedAt}.`}>
           <ul className="space-y-4 text-sm">
             {notes.map((n) => (
               <li key={n.title}>

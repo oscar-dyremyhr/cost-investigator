@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { Tags as TagsIcon } from "lucide-react";
-import { Badge, DataTable, Segmented, StatTile, Term } from "@/design-system/components";
+import { Badge, Segmented, SmartTable, StatTile, Term } from "@/design-system/components";
+import { productLabel } from "@/content/products";
+import { workloadHref } from "@/lib/links";
 import { num, usd, usdExact } from "@/lib/format";
 import { useUsage } from "@/lib/use-app-state";
-import { BarList, Page, PageHeader, SectionCard, SourceNote } from "./parts";
+import { BarList, NameLink, Page, PageHeader, SectionCard, SourceNote } from "./parts";
 import { RangePicker } from "./RangePicker";
 
-const productNames: Record<string, string> = { JOBS: "Jobs", SQL: "SQL", DLT: "Pipelines", ALL_PURPOSE: "All-purpose", MODEL_SERVING: "Model serving", INTERACTIVE: "Notebooks" };
 
 export default function Tags() {
   const { usage } = useUsage();
@@ -56,17 +57,19 @@ export default function Tags() {
 
         <SectionCard title={`Workloads missing ${tag.key}`} body="Tag these to move their cost to an owner. Start at the top." flush>
           <div className="px-5 pb-5 md:px-6 md:pb-6">
-            <DataTable
+            <SmartTable
+              search={(w) => `${w.name} ${w.kind} ${w.owner}`}
+              searchLabel="Filter workloads"
               caption={`Workloads missing ${tag.key}`}
               className="[&_table]:min-w-[30rem]"
               rows={missing}
               rowKey={(w) => `${w.kind}:${w.id}`}
               empty={<p className="rounded-card border border-dashed border-line-strong p-6 text-center text-sm text-ink-muted">Every workload in this range is tagged with {tag.key}.</p>}
               columns={[
-                { key: "n", header: "Workload", render: (w) => (<><p className="font-semibold break-words">{w.name}</p><p className="mt-0.5 text-xs text-ink-muted">{w.owner}</p></>) },
-                { key: "k", header: "Kind", render: (w) => <Badge>{w.kind}</Badge> },
-                { key: "p", header: "Product", render: (w) => <span className="text-xs">{productNames[w.product] ?? w.product}</span> },
-                { key: "c", header: "Est. list cost", align: "right", render: (w) => <span className="tabular font-mono font-semibold">{usdExact(w.usd)}</span> },
+                { key: "n", header: "Workload", sort: (w) => w.name, render: (w) => (w.slug ? <NameLink href={workloadHref(w.slug, w.id)} name={w.name} sub={w.owner} /> : w.name) },
+                { key: "k", header: "Kind", sort: (w) => w.kind, render: (w) => <Badge>{w.kind}</Badge> },
+                { key: "p", header: "Product", sort: (w) => productLabel(w.product), render: (w) => <span className="text-xs">{productLabel(w.product)}</span> },
+                { key: "c", header: "Est. list cost", align: "right", sort: (w) => w.usd, render: (w) => <span className="tabular font-mono font-semibold">{usdExact(w.usd)}</span> },
               ]}
             />
           </div>

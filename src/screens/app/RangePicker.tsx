@@ -2,14 +2,13 @@
 
 import { CalendarDays } from "lucide-react";
 import { Input, Select } from "@/design-system/components";
-import { rangePresets, resolveRange, type RangeChoice, type RangePreset } from "@/lib/range";
-import { useUsage } from "@/lib/use-app-state";
-import { cacheInfo } from "@/mocks/service";
+import { rangePresets, resolveRange, type Bounds, type RangeChoice, type RangePreset } from "@/lib/range";
+import { useCache, useUsage } from "@/lib/use-app-state";
 import { useRange } from "@/store/app";
 
 /** A date-range control that does not own its value, so the report builder can reuse it. */
-export function RangeFields({ choice, onChange, idPrefix }: { choice: RangeChoice; onChange: (choice: RangeChoice) => void; idPrefix: string }) {
-  const range = resolveRange(choice);
+export function RangeFields({ choice, onChange, idPrefix, bounds }: { choice: RangeChoice; onChange: (choice: RangeChoice) => void; idPrefix: string; bounds: Bounds }) {
+  const range = resolveRange(choice, bounds);
   const setPreset = (preset: RangePreset) => onChange(preset === "custom" ? { preset, from: range.from, to: range.to } : { preset });
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -23,9 +22,9 @@ export function RangeFields({ choice, onChange, idPrefix }: { choice: RangeChoic
       </span>
       {choice.preset === "custom" ? (
         <>
-          <Input type="date" aria-label="From" data-testid={`${idPrefix}-from`} className="h-10 w-40" min={cacheInfo.from} max={range.to} value={range.from} onChange={(e) => e.target.value && onChange({ preset: "custom", from: e.target.value, to: range.to })} />
+          <Input type="date" aria-label="From" data-testid={`${idPrefix}-from`} className="h-10 w-40" min={bounds.from} max={range.to} value={range.from} onChange={(e) => e.target.value && onChange({ preset: "custom", from: e.target.value, to: range.to })} />
           <span className="text-sm text-ink-muted">to</span>
-          <Input type="date" aria-label="To" data-testid={`${idPrefix}-to`} className="h-10 w-40" min={range.from} max={cacheInfo.to} value={range.to} onChange={(e) => e.target.value && onChange({ preset: "custom", from: range.from, to: e.target.value })} />
+          <Input type="date" aria-label="To" data-testid={`${idPrefix}-to`} className="h-10 w-40" min={range.from} max={bounds.to} value={range.to} onChange={(e) => e.target.value && onChange({ preset: "custom", from: range.from, to: e.target.value })} />
         </>
       ) : null}
     </div>
@@ -35,11 +34,12 @@ export function RangeFields({ choice, onChange, idPrefix }: { choice: RangeChoic
 /** The app-wide date range, shown on every usage page. Changing it re-queries the cached data. */
 export function RangePicker() {
   const { choice, label, cutShort, usage } = useUsage();
+  const { cache, isSample } = useCache();
   return (
     <div className="flex flex-col items-end gap-1.5" data-testid="range-picker">
-      <RangeFields idPrefix="range" choice={choice} onChange={(next) => useRange.setState({ choice: next })} />
+      <RangeFields idPrefix="range" choice={choice} bounds={cache} onChange={(next) => useRange.setState({ choice: next })} />
       <p className="text-xs text-ink-muted" data-testid="range-label">
-        {label} · {usage.days} {usage.days === 1 ? "day" : "days"} · sample data{cutShort ? " · cached from Sep 1" : ""}
+        {label} · {usage.days} {usage.days === 1 ? "day" : "days"} · {isSample ? "sample data" : "your data"}{cutShort ? ` · data starts ${cache.from}` : ""}
       </p>
     </div>
   );

@@ -6,9 +6,8 @@ import { BudgetGauge, ButtonLink, StatTile, StatusPill, Term } from "@/design-sy
 import { change, num, pct, usd } from "@/lib/format";
 import { sortRecommendations, statusOf } from "@/lib/recommendations";
 import { serverlessSpend } from "@/lib/serverless";
-import { useAlerts, useBudget, useNegotiatedPrices, useRecommendationList, useRecommendationStatuses, useRecommendationSummary, useUsage } from "@/lib/use-app-state";
+import { useAlerts, useBudget, useCache, useNegotiatedPrices, useRecommendationList, useRecommendationStatuses, useRecommendationSummary, useUsage } from "@/lib/use-app-state";
 import { applyDiscounts, hasDiscounts } from "@/lib/pricing";
-import { recordTypes } from "@/mocks/service";
 import { BarList, DailyBars, Page, PageHeader, SectionCard, SourceNote } from "./parts";
 import { RangePicker } from "./RangePicker";
 
@@ -16,6 +15,7 @@ const linkClass = "inline-flex items-center gap-1 text-sm font-semibold text-bra
 
 export default function Dashboard() {
   const { usage, label, previousUsd, previousLabel } = useUsage();
+  const { cache } = useCache();
   const { budget, projection, projectedPercent, daysElapsed, daysInMonth } = useBudget();
   const daily = usage.daily.map((d) => ({ label: d.label, value: d.listCostUsd }));
   const alerts = useAlerts();
@@ -44,6 +44,13 @@ export default function Dashboard() {
         body="What was used, whether it is on pace, what to look at next and which alerts are firing. Every figure is an estimate at list price."
         actions={<RangePicker />}
       />
+
+      {usage.unpriced.rows > 0 ? (
+        <p className="rounded-2xl border border-watch-ink/40 bg-watch-soft px-4 py-3 text-sm" role="status">
+          <strong>{num(usage.unpriced.rows)} usage rows have no list price</strong> and count as $0, so the totals below are too low. See{" "}
+          <Link href="/data" className="font-semibold underline underline-offset-4">Data</Link> for the SKUs.
+        </p>
+      ) : null}
 
       <section aria-label="Summary" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile
@@ -86,7 +93,7 @@ export default function Dashboard() {
           <DailyBars data={daily} label="List cost" format={usd} axisFormat={(v) => `$${(v / 1000).toFixed(0)}k`} flagIndex={spike > 25 ? daily.length - 1 : undefined} />
           <p className="mt-3 border-t border-line pt-3 text-xs leading-5 text-ink-muted">
             Usage quantity times the matching <Term k="listPrice">list price</Term>, summed by <code className="font-mono">usage_date</code>. Corrections are netted
-            in. Cache last refreshed {recordTypes.latestIngestion}.
+            in. Data last refreshed {cache.refreshedAt}.
           </p>
         </SectionCard>
 

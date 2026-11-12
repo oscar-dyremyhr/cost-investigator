@@ -10,9 +10,8 @@ import { pricing } from "@/content/pricing";
 import { usd } from "@/lib/format";
 import { applyDiscounts, cleanDiscounts, hasDiscounts, type Discounts } from "@/lib/pricing";
 import { invite, owner, remove, roleLabels, roleNotes, type Member, type Role } from "@/lib/team";
-import { useNegotiatedPrices, useUsage } from "@/lib/use-app-state";
+import { useCache, useNegotiatedPrices, useUsage } from "@/lib/use-app-state";
 import { useHydrated } from "@/lib/use-hydrated";
-import { recordTypes } from "@/mocks/service";
 import { resetDemo, useDiscounts, useTeam } from "@/store/app";
 import { Page, PageHeader, SampleBadge } from "./parts";
 
@@ -132,6 +131,7 @@ export default function Settings() {
   const router = useRouter();
   const hydrated = useHydrated();
   const discounts = useNegotiatedPrices();
+  const { cache } = useCache();
   const stored = useTeam((s) => s.invited);
   const members = useMemo<Member[]>(() => [owner, ...(hydrated ? stored : [])], [hydrated, stored]);
   const [version, setVersion] = useState(0);
@@ -248,7 +248,7 @@ export default function Settings() {
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold">{w.name}</p>
                   <p className="font-mono text-xs text-ink-muted">Workspace {w.id}</p>
-                  <p className="mt-1 text-xs text-ink-muted">AWS · {w.region} · Latest usage read: {recordTypes.latestIngestion}</p>
+                  <p className="mt-1 text-xs text-ink-muted">AWS · {w.region} · Latest usage read: {cache.refreshedAt}</p>
                 </div>
                 {included ? <Badge tone="mint">Included</Badge> : <Badge>Not included</Badge>}
               </li>

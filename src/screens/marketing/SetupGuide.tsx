@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { setupGrantSql as sql, setupPermissions as permissions } from "@/content/copy";
-import { ArrowLeft, ArrowRight, Ban, Check, Clipboard, Database, KeyRound, LockKeyhole, RotateCcw, Server, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ArrowRight, Ban, Clipboard, Database, KeyRound, LockKeyhole, RotateCcw, Server, ShieldCheck } from "lucide-react";
 
 export default function SetupGuide() {
   const [copied, setCopied] = useState(false);

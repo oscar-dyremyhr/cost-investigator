@@ -14,12 +14,12 @@ export {
 export {
   defaultAlertRules,
   listPrices,
-  recordTypes,
   servingEndpoints,
   serverlessNotebooks,
   topJobRuns,
   workspaces,
 } from "./fixtures/workloads";
-export { cacheInfo, queryUsage, totalFor } from "./query";
-export type { Usage } from "./query";
+export { cacheInfo, inScope, queryUsage, queryWorkload, scopeSpend, totalFor, workloadOf, workspaceName } from "./query";
+export type { Scope, Usage, WorkloadDetail } from "./query";
+export { sampleCache } from "./cache";
 export type { CostCache, CostDataSource, DateRange } from "@/data/contract";

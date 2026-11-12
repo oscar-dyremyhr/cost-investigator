@@ -5,7 +5,10 @@ import { ArrowRight, BellRing } from "lucide-react";
 import { Input, StatTile, StatusPill, toast } from "@/design-system/components";
 import type { AlertKind, AlertRule } from "@/lib/alerts";
 import { pct, usd, usdExact } from "@/lib/format";
-import { useAlerts, useBudget } from "@/lib/use-app-state";
+import { scopeLabel } from "@/lib/budget";
+import { productLabel } from "@/content/products";
+import { useAlerts, useBudget, useScopedBudgetStatus } from "@/lib/use-app-state";
+import { workspaceName } from "@/mocks/service";
 import { useAlertRules, type AlertOverride } from "@/store/app";
 import { Page, PageHeader, SampleBadge, SourceNote } from "./parts";
 
@@ -28,6 +31,7 @@ export default function Alerts() {
   const enabled = alerts.filter((a) => a.rule.enabled);
   const firing = enabled.filter((a) => a.result.triggered);
   const budgetFiring = projectedPercent >= budget.alertAt;
+  const scopedFiring = useScopedBudgetStatus().filter((s) => s.status !== "pass");
 
   return (
     <Page>
@@ -39,7 +43,7 @@ export default function Alerts() {
       />
 
       <section aria-label="Summary" className="grid gap-4 sm:grid-cols-3">
-        <StatTile label="Firing now" value={String(firing.length + (budgetFiring ? 1 : 0))} sub="Over the last 30 days" foot="Including the budget alert" icon={<BellRing aria-hidden />} />
+        <StatTile label="Firing now" value={String(firing.length + (budgetFiring ? 1 : 0) + scopedFiring.length)} sub="Over the last 30 days" foot="Including budget alerts" icon={<BellRing aria-hidden />} />
         <StatTile label="Rules on" value={`${enabled.length} of ${alerts.length}`} sub="Checked on every data refresh" foot="Usage arrives within about 12 hours" />
         <StatTile label="Delivery" value="Not connected" sub="Email and chat are not set up in this demo" foot="Results are shown on this page only" />
       </section>
@@ -55,8 +59,18 @@ export default function Alerts() {
           </div>
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4 text-sm">
             <span>Projected <span className="tabular font-mono font-semibold">{usd(projection)}</span> ({pct(projectedPercent, 0)} of budget)</span>
-            <Link href="/budgets" className="inline-flex items-center gap-1 font-semibold text-brand">Edit budget <ArrowRight className="size-3.5" aria-hidden /></Link>
+            <Link href="/budgets" className="inline-flex items-center gap-1 font-semibold text-brand">Edit budgets <ArrowRight className="size-3.5" aria-hidden /></Link>
           </div>
+          {scopedFiring.length ? (
+            <ul className="mt-4 divide-y divide-line rounded-xl bg-watch-soft px-4 text-sm" data-testid="scoped-budget-alerts">
+              {scopedFiring.map((s) => (
+                <li key={s.budget.id} className="flex items-center justify-between gap-3 py-2">
+                  <span className="min-w-0 truncate">{scopeLabel(s.budget.scope, { workspace: workspaceName, product: productLabel })} · on course for {usd(s.projection)} of {usd(s.budget.amount)}</span>
+                  <span className="tabular font-mono font-semibold">{s.projectedPercent.toFixed(0)}%</span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </li>
 
         {alerts.map(({ rule, result }) => {

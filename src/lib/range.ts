@@ -1,4 +1,7 @@
-import { cacheInfo, queryUsage, totalFor, type DateRange } from "@/mocks/service";
+import { cacheInfo, queryUsage, sampleCache, totalFor, type CostCache, type DateRange } from "@/mocks/service";
+
+/** The first and last day a cache holds. Ranges are resolved against these. */
+export type Bounds = { from: string; to: string };
 
 export type RangePreset = "mtd" | "last-month" | "last-7" | "last-30" | "qtd" | "ytd" | "custom";
 export type RangeChoice = { preset: RangePreset; from?: string; to?: string };
@@ -16,12 +19,14 @@ export const rangePresets: { id: RangePreset; label: string }[] = [
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 const utc = (value: string) => new Date(`${value}T00:00:00Z`);
 const addDays = (value: string, days: number) => iso(new Date(utc(value).getTime() + days * 86_400_000));
-const clamp = (value: string) => (value < cacheInfo.from ? cacheInfo.from : value > cacheInfo.to ? cacheInfo.to : value);
+const clampTo = (bounds: Bounds) => (value: string) => (value < bounds.from ? bounds.from : value > bounds.to ? bounds.to : value);
 const isDate = (value: unknown): value is string => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(utc(value).getTime());
 export const daysIn = (range: DateRange) => Math.round((utc(range.to).getTime() - utc(range.from).getTime()) / 86_400_000) + 1;
 
 /** "Today" is the latest day in the cache. Every range is kept inside what is cached. */
-export function resolveRange(choice: RangeChoice, today = cacheInfo.to): DateRange {
+export function resolveRange(choice: RangeChoice, bounds: Bounds = cacheInfo): DateRange {
+  const today = bounds.to;
+  const clamp = clampTo(bounds);
   const t = utc(today);
   const y = t.getUTCFullYear();
   const m = t.getUTCMonth();
@@ -50,11 +55,20 @@ export function resolveRange(choice: RangeChoice, today = cacheInfo.to): DateRan
 }
 
 /** True when the preset asked for days older than the cache holds. */
-export const isCutShort = (choice: RangeChoice, today = cacheInfo.to) => {
-  if (choice.preset === "custom") return (isDate(choice.from) && choice.from < cacheInfo.from) || false;
-  const t = utc(today);
-  const wanted = choice.preset === "ytd" ? iso(new Date(Date.UTC(t.getUTCFullYear(), 0, 1))) : resolveRange(choice, today).from;
-  return wanted < cacheInfo.from;
+export const isCutShort = (choice: RangeChoice, bounds: Bounds = cacheInfo) => {
+  if (choice.preset === "custom") return (isDate(choice.from) && choice.from < bounds.from) || false;
+  const t = utc(bounds.to);
+  const y = t.getUTCFullYear();
+  const m = t.getUTCMonth();
+  const wanted: Record<Exclude<RangePreset, "custom">, string> = {
+    mtd: iso(new Date(Date.UTC(y, m, 1))),
+    "last-month": iso(new Date(Date.UTC(y, m - 1, 1))),
+    "last-7": addDays(bounds.to, -6),
+    "last-30": addDays(bounds.to, -29),
+    qtd: iso(new Date(Date.UTC(y, Math.floor(m / 3) * 3, 1))),
+    ytd: iso(new Date(Date.UTC(y, 0, 1))),
+  };
+  return wanted[choice.preset] < bounds.from;
 };
 
 /**
@@ -87,16 +101,16 @@ export function formatRange(range: DateRange) {
 }
 
 /** Everything needed to describe one date range: the data, its label and what to compare it with. */
-export function describeRange(choice: RangeChoice) {
-  const range = resolveRange(choice);
+export function describeRange(choice: RangeChoice, cache: CostCache = sampleCache) {
+  const range = resolveRange(choice, cache);
   const previous = previousRange(choice, range);
   return {
     choice,
     range,
     label: formatRange(range),
-    cutShort: isCutShort(choice),
-    usage: queryUsage(range),
-    previousUsd: totalFor(previous.range),
+    cutShort: isCutShort(choice, cache),
+    usage: queryUsage(range, cache),
+    previousUsd: totalFor(previous.range, cache),
     previousLabel: previous.label,
   };
 }

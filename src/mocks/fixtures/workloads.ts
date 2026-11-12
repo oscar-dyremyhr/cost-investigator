@@ -97,9 +97,6 @@ export const listPrices = [
   { skuName: "PREMIUM_ALL_PURPOSE_SERVERLESS_COMPUTE_US_EAST_N_VIRGINIA", cloud: "AWS", usageUnit: "DBU", currencyCode: "USD", priceStart: "2024-07-01", priceEnd: null, defaultPrice: 0.75, promotionalPrice: null, effectiveListPrice: 0.75 },
 ];
 
-/** How the sample period was netted: corrections add RETRACTION and RESTATEMENT rows. */
-export const recordTypes = { original: 4382, retraction: 14, restatement: 14, latestIngestion: "Nov 12, 2026 · 06:10 UTC" };
-
 /** The default alert rules. The first three follow the alert queries in the Databricks serverless cost guide and look at the last 30 days. */
 export const defaultAlertRules = [
   { id: "workspace-serverless", kind: "workspace_serverless", name: "Serverless spend per workspace", threshold: 12000, unit: "usd", enabled: true },

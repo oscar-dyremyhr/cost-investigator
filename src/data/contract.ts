@@ -18,9 +18,10 @@ export type UsageRow = {
   usage_unit: string;
   /** Signed quantities summed, so retractions and restatements are already netted. */
   usage_quantity: number;
-  /** usage_quantity × pricing.effective_list.default of the price valid at the time. */
+  /** usage_quantity × pricing.effective_list.default of the price valid at the time. 0 when no price matched. */
   list_cost: number;
-  currency_code: string;
+  /** The price's currency. null means no list price matched this usage (the LEFT JOIN found nothing). */
+  currency_code: string | null;
   /** How many usage records were summed into this row. */
   record_count: number;
   /* usage_metadata: which workload it was. Only the field that applies is set. */

@@ -3,9 +3,9 @@
 import { Suspense, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BellRing, Bot, BriefcaseBusiness, Cloud, FileText, Gauge, Hash, LayoutDashboard, Layers3, Lightbulb, Server, Settings, Tags, Zap } from "lucide-react";
+import { BellRing, Bot, BriefcaseBusiness, Cloud, Database, FileText, Gauge, Hash, LayoutDashboard, Layers3, Lightbulb, Server, Settings, Tags, Zap } from "lucide-react";
 import { ButtonLink, Logo, LogoMark, ThemeToggle } from "@/design-system/components";
-import { useAlerts, useRecommendationSummary } from "@/lib/use-app-state";
+import { useAlerts, useCache, useRecommendationSummary, useUsage } from "@/lib/use-app-state";
 import { cn } from "@/lib/utils";
 
 const groups = [
@@ -33,12 +33,15 @@ const groups = [
   },
   {
     label: "Account",
-    items: [{ href: "/settings", label: "Settings", icon: Settings }],
+    items: [
+      { href: "/data", label: "Data", icon: Database },
+      { href: "/settings", label: "Settings", icon: Settings },
+    ],
   },
 ];
 const allItems = groups.flatMap((g) => g.items);
 
-function Nav({ counts }: { counts: { recommendations: number; alerts: number } }) {
+function Nav({ counts, account }: { counts: { recommendations: number; alerts: number }; account: { title: string; name: string; detail: string } }) {
   const pathname = usePathname();
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
   return (
@@ -49,10 +52,10 @@ function Nav({ counts }: { counts: { recommendations: number; alerts: number } }
           <Logo href="/" />
         </div>
         <div className="mx-3 rounded-2xl border border-line bg-paper p-3">
-          <p className="text-[11px] font-semibold tracking-wider text-ink-muted uppercase">Sample account</p>
-          <p className="mt-1 text-sm font-semibold">Northstar Commerce</p>
+          <p className="text-[11px] font-semibold tracking-wider text-ink-muted uppercase">{account.title}</p>
+          <p className="mt-1 truncate text-sm font-semibold">{account.name}</p>
           <p className="mt-0.5 flex items-center gap-1 text-xs text-ink-muted">
-            <Cloud className="size-3.5" aria-hidden /> AWS · 4 workspaces
+            <Cloud className="size-3.5 shrink-0" aria-hidden /> {account.detail}
           </p>
         </div>
         <nav aria-label="Main navigation" className="flex-1 overflow-y-auto px-3 py-4">
@@ -119,6 +122,11 @@ function Nav({ counts }: { counts: { recommendations: number; alerts: number } }
 export default function AppShell({ children }: { children: ReactNode }) {
   const alerts = useAlerts();
   const recommendations = useRecommendationSummary();
+  const { source, isSample } = useCache();
+  const { usage } = useUsage();
+  const account = isSample
+    ? { title: "Sample account", name: "Northstar Commerce", detail: `AWS · ${usage.workspaceCount} workspaces` }
+    : { title: "Your data", name: source.kind === "upload" ? source.files[0] : "Upload", detail: `${usage.workspaceCount} ${usage.workspaceCount === 1 ? "workspace" : "workspaces"} · uploaded files` };
   const counts = {
     recommendations: recommendations.counts.open,
     alerts: alerts.filter((a) => a.rule.enabled && a.result.triggered).length,
@@ -133,7 +141,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
           <LogoMark size={32} />
         </Link>
         <span className="hidden items-center gap-2 rounded-full border border-line bg-surface px-3 py-1.5 text-xs text-ink-muted sm:inline-flex">
-          <span className="size-2 rounded-full bg-watch" aria-hidden /> Sample data · no live Databricks connection
+          <span className={`size-2 rounded-full ${isSample ? "bg-watch" : "bg-pass"}`} aria-hidden /> {isSample ? "Sample data · no live Databricks connection" : "Your uploaded data · read in this browser only"}
         </span>
         <span className="flex-1" />
         <ThemeToggle />
@@ -142,7 +150,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
         </ButtonLink>
       </header>
       <Suspense fallback={null}>
-        <Nav counts={counts} />
+        <Nav counts={counts} account={account} />
       </Suspense>
       <div id="content">{children}</div>
     </div>

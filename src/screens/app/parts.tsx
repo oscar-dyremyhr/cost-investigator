@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Badge } from "@/design-system/components";
@@ -74,26 +75,55 @@ export function SourceNote({ tables, children, href, linkLabel = "Databricks ref
   );
 }
 
-export const SampleBadge = () => <Badge>Sample data · Nov 1–11, 2026</Badge>;
+export const SampleBadge = () => <Badge>Sample data</Badge>;
 
-/** Horizontal bars for a ranked share-of-total list. One hue; the value is always printed. */
-export function BarList({ rows, format }: { rows: { key: string; label: ReactNode; sub?: string; value: number }[]; format: (n: number) => string }) {
-  const max = Math.max(...rows.map((r) => r.value), 1);
+type BarRow = { key: string; label: ReactNode; sub?: string; value: number; href?: string };
+
+/**
+ * Horizontal bars for a ranked list. One hue; the value is always printed.
+ * Past `limit` rows the rest are added together as one "Other" bar, so a long
+ * list stays readable. Rows must already be sorted, largest first.
+ */
+export function BarList({ rows, format, limit = 8 }: { rows: BarRow[]; format: (n: number) => string; limit?: number }) {
+  const shown = rows.length > limit ? rows.slice(0, limit - 1) : rows;
+  const rest = rows.slice(shown.length);
+  const all: BarRow[] = rest.length ? [...shown, { key: "__other", label: `Other (${rest.length} more)`, value: rest.reduce((s, r) => s + r.value, 0) }] : shown;
+  const max = Math.max(...shown.map((r) => r.value), 1);
   return (
     <ul className="space-y-4">
-      {rows.map((r) => (
+      {all.map((r) => (
         <li key={r.key}>
           <div className="flex items-baseline justify-between gap-3">
-            <span className="min-w-0 truncate text-sm font-semibold">{r.label}</span>
+            <span className="min-w-0 truncate text-sm font-semibold">
+              {r.href ? (
+                <Link href={r.href} className="rounded underline-offset-4 hover:text-brand hover:underline">
+                  {r.label}
+                </Link>
+              ) : (
+                r.label
+              )}
+            </span>
             <span className="tabular font-mono text-sm font-semibold">{format(r.value)}</span>
           </div>
           <div className="mt-2 h-2 overflow-hidden rounded-full bg-paper-deep">
-            <span className="block h-full rounded-full bg-brand" style={{ width: `${(r.value / max) * 100}%` }} />
+            <span className={cn("block h-full rounded-full", r.key === "__other" ? "bg-ink-muted" : "bg-brand")} style={{ width: `${Math.min(100, (r.value / max) * 100)}%` }} />
           </div>
           {r.sub ? <p className="mt-1.5 font-mono text-[11px] text-ink-muted">{r.sub}</p> : null}
         </li>
       ))}
     </ul>
+  );
+}
+
+/** A name in a table that links to its detail page. */
+export function NameLink({ href, name, sub }: { href: string; name: string; sub?: string }) {
+  return (
+    <>
+      <Link href={href} className="rounded font-semibold underline-offset-4 hover:text-brand hover:underline">
+        {name}
+      </Link>
+      {sub ? <p className="mt-0.5 font-mono text-[11px] text-ink-muted">{sub}</p> : null}
+    </>
   );
 }
 

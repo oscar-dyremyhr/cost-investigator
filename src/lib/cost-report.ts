@@ -2,6 +2,7 @@ import { reportSections, type ReportAudienceId, type ReportSectionId } from "@/c
 import type { RecommendationStatus } from "@/lib/recommendations";
 import { statusOf } from "@/lib/recommendations";
 import { serverlessSpend } from "@/lib/serverless";
+import type { CostCache } from "@/data/contract";
 import { describeRange, type RangeChoice } from "@/lib/range";
 import { applyDiscounts, hasDiscounts, noDiscounts, type Discounts } from "@/lib/pricing";
 import type { Recommendation } from "@/lib/recommend";
@@ -49,6 +50,8 @@ export type ReportContext = {
   /** The current findings, computed from the cache. */
   recommendations: Recommendation[];
   discounts?: Discounts;
+  /** The data to report on. The sample when left out. */
+  cache?: CostCache;
 };
 
 const sectionIds = reportSections.map((s) => s.id) as ReportSectionId[];
@@ -58,7 +61,7 @@ function makeId(prefix: string) {
 
 export function createCostReport(input: ReportInput, context: ReportContext, now = new Date()): CostReport {
   // The report queries the cached data for its own date range, independent of what the pages show.
-  const { usage, label, previousUsd, previousLabel } = describeRange(input.range ?? { preset: "mtd" });
+  const { usage, label, previousUsd, previousLabel } = describeRange(input.range ?? { preset: "mtd" }, context.cache);
   const serverless = serverlessSpend(usage);
   const net = applyDiscounts(usage.products, context.discounts ?? noDiscounts);
   return {

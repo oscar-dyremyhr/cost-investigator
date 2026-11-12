@@ -1,13 +1,14 @@
 "use client";
 
 import { Bot, Rocket, Tags } from "lucide-react";
-import { Badge, DataTable, StatTile, StatusPill } from "@/design-system/components";
+import { Badge, SmartTable, StatTile, StatusPill } from "@/design-system/components";
+import { workloadHref } from "@/lib/links";
 import { num, usd } from "@/lib/format";
 import { useUsage } from "@/lib/use-app-state";
-import { BarList, DailyBars, Page, PageHeader, SectionCard, SourceNote } from "./parts";
+import { BarList, DailyBars, NameLink, Page, PageHeader, SectionCard, SourceNote } from "./parts";
 import { RangePicker } from "./RangePicker";
 
-const typeLabels: Record<string, string> = { MODEL: "CPU model", GPU_MODEL: "GPU model", FOUNDATION_MODEL: "Foundation model", FEATURE: "Feature serving" };
+const typeNames: Record<string, string> = { MODEL: "CPU model", GPU_MODEL: "GPU model", FOUNDATION_MODEL: "Foundation model", FEATURE: "Feature serving" };
 
 export default function ModelServing() {
   const { usage } = useUsage();
@@ -41,17 +42,19 @@ export default function ModelServing() {
 
       <SectionCard title="Endpoints by cost" body="Start-up DBUs are billed on a separate launch SKU when an endpoint wakes from zero." flush>
         <div className="px-5 pb-5 md:px-6 md:pb-6">
-          <DataTable
+          <SmartTable
+            search={(e) => `${e.endpointName} ${e.businessUnit} ${e.servingType}`}
+            searchLabel="Filter endpoints"
             caption="Endpoints by cost"
             rows={servingEndpoints}
             rowKey={(e) => e.endpointName}
             columns={[
-              { key: "name", header: "Endpoint", render: (e) => <span className="font-mono text-xs font-semibold">{e.endpointName}</span> },
-              { key: "type", header: "Serving type", render: (e) => (<span className="flex flex-wrap items-center gap-1.5">{typeLabels[e.servingType]}{e.batch ? <Badge tone="brand">Batch</Badge> : null}</span>) },
+              { key: "name", header: "Endpoint", sort: (e) => e.endpointName, render: (e) => <NameLink href={workloadHref("endpoint", e.endpointName)} name={e.endpointName} /> },
+              { key: "type", header: "Serving type", render: (e) => (<span className="flex flex-wrap items-center gap-1.5">{(typeNames[e.servingType] ?? e.servingType)}{e.batch ? <Badge tone="brand">Batch</Badge> : null}</span>) },
               { key: "tag", header: "business_unit", render: (e) => (e.businessUnit ? <span className="font-mono text-xs">{e.businessUnit}</span> : <StatusPill size="sm" status="watch" label="No tag" />) },
-              { key: "dbu", header: "DBUs", align: "right", render: (e) => <span className="tabular font-mono">{num(e.dbus)}</span> },
-              { key: "launch", header: "Start-up DBUs", align: "right", render: (e) => <span className="tabular font-mono">{e.launchDbus ? num(e.launchDbus) : "–"}</span> },
-              { key: "cost", header: "Est. list cost", align: "right", render: (e) => <span className="tabular font-mono font-semibold">{usd(e.estimatedListCostUsd)}</span> },
+              { key: "dbu", header: "DBUs", align: "right", sort: (e) => e.dbus, render: (e) => <span className="tabular font-mono">{num(e.dbus)}</span> },
+              { key: "launch", header: "Start-up DBUs", align: "right", sort: (e) => e.launchDbus, render: (e) => <span className="tabular font-mono">{e.launchDbus ? num(e.launchDbus) : "–"}</span> },
+              { key: "cost", header: "Est. list cost", align: "right", sort: (e) => e.estimatedListCostUsd, render: (e) => <span className="tabular font-mono font-semibold">{usd(e.estimatedListCostUsd)}</span> },
             ]}
           />
         </div>
@@ -59,7 +62,7 @@ export default function ModelServing() {
 
       <div className="grid gap-5 xl:grid-cols-2">
         <SectionCard title="By serving type" body="From product_features.serving_type.">
-          <BarList format={usd} rows={byType.map(([type, value]) => ({ key: type, label: typeLabels[type], sub: type, value }))} />
+          <BarList format={usd} rows={byType.map(([type, value]) => ({ key: type, label: typeNames[type] ?? type, sub: type, value }))} />
         </SectionCard>
         <SectionCard title="By business unit tag" body="Endpoint tags flow into the custom_tags column of the usage table.">
           <BarList format={usd} rows={byUnit.map(([unit, value]) => ({ key: unit, label: unit, value }))} />

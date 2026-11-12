@@ -1,23 +1,22 @@
 "use client";
 
 import { Database, GitBranch, Server } from "lucide-react";
-import { Badge, DataTable, StatTile, StatusPill, Term } from "@/design-system/components";
+import { Badge, SmartTable, StatTile, StatusPill, Term } from "@/design-system/components";
+import { workloadHref, type WorkloadKind } from "@/lib/links";
 import { num, usd, usdExact } from "@/lib/format";
 import { thresholds } from "@/lib/recommend";
 import { useUsage } from "@/lib/use-app-state";
 import type { Usage } from "@/mocks/service";
-import { BarList, Page, PageHeader, SectionCard, SourceNote } from "./parts";
+import { BarList, NameLink, Page, PageHeader, SectionCard, SourceNote } from "./parts";
 import { RangePicker } from "./RangePicker";
 
 type Resource = Usage["warehouses"][number];
 const sum = (rows: Resource[]) => rows.reduce((s, r) => s + r.estimatedListCostUsd, 0);
 
-const nameCell = (r: Resource) => (
-  <>
-    <p className="font-semibold whitespace-nowrap">{r.name}</p>
-    <p className="mt-0.5 font-mono text-[11px] whitespace-nowrap text-ink-muted">{r.id}</p>
-  </>
-);
+const nameCell = (kind: WorkloadKind) => function Name(r: Resource) {
+  return <NameLink href={workloadHref(kind, r.id)} name={r.name} sub={r.id} />;
+};
+const find = (r: Resource) => `${r.name} ${r.id} ${r.owner} ${r.tags.team ?? ""}`;
 const tagCell = (r: Resource) => (r.tags.team ? <span className="font-mono text-xs">{r.tags.team}</span> : <StatusPill size="sm" status="watch" label="No tag" />);
 const costCell = (r: Resource) => <span className="tabular font-mono font-semibold">{usdExact(r.estimatedListCostUsd)}</span>;
 const dbuCell = (r: Resource) => <span className="tabular font-mono">{num(r.dbus)}</span>;
@@ -56,19 +55,21 @@ export default function Compute() {
 
       <SectionCard title="SQL warehouses" body="Grouped by usage_metadata.warehouse_id. Auto-stop is how long a warehouse waits with no queries before it turns off." flush>
         <div className="px-5 pb-5 md:px-6 md:pb-6">
-          <DataTable<Resource>
+          <SmartTable<Resource>
+            search={find}
+            searchLabel="Filter warehouses"
             caption="SQL warehouses"
             rows={warehouses}
             rowKey={(r) => r.id}
             empty={empty("SQL warehouse")}
             columns={[
-              { key: "n", header: "Warehouse", render: nameCell },
+              { key: "n", header: "Warehouse", sort: (r) => r.name, render: nameCell("warehouse") },
               { key: "t", header: "Type", render: (r) => (<span className="flex flex-wrap items-center gap-1.5"><Badge tone={r.serverless ? "brand" : "neutral"}>{r.serverless ? "Serverless" : "Classic / Pro"}</Badge>{r.size ? <span className="text-xs text-ink-muted">{r.size}</span> : null}</span>) },
-              { key: "o", header: "Owner", render: ownerCell },
+              { key: "o", header: "Owner", sort: (r) => r.owner, render: ownerCell },
               { key: "tag", header: "Team tag", render: tagCell },
               { key: "s", header: "Auto-stop", render: (r) => stopCell(r, "warehouse") },
-              { key: "d", header: "DBUs", align: "right", render: dbuCell },
-              { key: "c", header: "Est. list cost", align: "right", render: costCell },
+              { key: "d", header: "DBUs", align: "right", sort: (r) => r.dbus, render: dbuCell },
+              { key: "c", header: "Est. list cost", align: "right", sort: (r) => r.estimatedListCostUsd, render: costCell },
             ]}
           />
         </div>
@@ -76,18 +77,20 @@ export default function Compute() {
 
       <SectionCard title="All-purpose clusters" body="Grouped by usage_metadata.cluster_id. These cost more per DBU than job compute, so one left running is expensive." flush>
         <div className="px-5 pb-5 md:px-6 md:pb-6">
-          <DataTable<Resource>
+          <SmartTable<Resource>
+            search={find}
+            searchLabel="Filter clusters"
             caption="All-purpose clusters"
             rows={clusters}
             rowKey={(r) => r.id}
             empty={empty("all-purpose cluster")}
             columns={[
-              { key: "n", header: "Cluster", render: nameCell },
-              { key: "o", header: "Owner", render: ownerCell },
+              { key: "n", header: "Cluster", sort: (r) => r.name, render: nameCell("cluster") },
+              { key: "o", header: "Owner", sort: (r) => r.owner, render: ownerCell },
               { key: "tag", header: "Team tag", render: tagCell },
               { key: "s", header: "Auto-termination", render: (r) => stopCell(r, "cluster") },
-              { key: "d", header: "DBUs", align: "right", render: dbuCell },
-              { key: "c", header: "Est. list cost", align: "right", render: costCell },
+              { key: "d", header: "DBUs", align: "right", sort: (r) => r.dbus, render: dbuCell },
+              { key: "c", header: "Est. list cost", align: "right", sort: (r) => r.estimatedListCostUsd, render: costCell },
             ]}
           />
         </div>
@@ -95,7 +98,7 @@ export default function Compute() {
 
       <div className="grid gap-5 xl:grid-cols-2">
         <SectionCard title="Pipelines" body="Lakeflow pipelines, grouped by usage_metadata.dlt_pipeline_id.">
-          {pipelines.length ? <BarList format={usdExact} rows={pipelines.map((p) => ({ key: p.id, label: p.name, sub: `${p.owner} · ${num(p.dbus)} DBU`, value: p.estimatedListCostUsd }))} /> : empty("pipeline")}
+          {pipelines.length ? <BarList format={usdExact} rows={pipelines.map((p) => ({ key: p.id, label: p.name, href: workloadHref("pipeline", p.id), sub: `${p.owner} · ${num(p.dbus)} DBU`, value: p.estimatedListCostUsd }))} /> : empty("pipeline")}
         </SectionCard>
         <SectionCard title="Where the non-job spend sits" body="Every warehouse, cluster and pipeline, largest first.">
           <BarList format={usd} rows={[...warehouses, ...clusters, ...pipelines].sort((a, b) => b.estimatedListCostUsd - a.estimatedListCostUsd).map((r) => ({ key: r.id, label: r.name, value: r.estimatedListCostUsd }))} />

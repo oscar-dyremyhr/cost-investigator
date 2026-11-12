@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { ArrowRight, NotebookText, Users, Zap } from "lucide-react";
-import { DataTable, StatTile, StatusPill } from "@/design-system/components";
+import { SmartTable, StatTile, StatusPill } from "@/design-system/components";
+import { workloadHref } from "@/lib/links";
 import { num, usd, usdExact } from "@/lib/format";
 import { serverlessJobs, serverlessSpend } from "@/lib/serverless";
 import { useAlerts, useUsage } from "@/lib/use-app-state";
-import { BarList, Page, PageHeader, SectionCard, SourceNote } from "./parts";
+import { BarList, NameLink, Page, PageHeader, SectionCard, SourceNote } from "./parts";
 import { RangePicker } from "./RangePicker";
 
 const featureRows = [
@@ -48,7 +49,7 @@ export default function Serverless() {
           <BarList format={usdExact} rows={spend.byUser.map((u) => ({ key: u.key, label: u.label, value: u.usd }))} />
         </SectionCard>
         <SectionCard title="By workspace" body="Serverless list cost in each workspace.">
-          <BarList format={usdExact} rows={spend.byWorkspace.map((w) => ({ key: w.key, label: <span className="font-mono">{w.key}</span>, value: w.usd }))} />
+          <BarList format={usdExact} rows={spend.byWorkspace.map((w) => ({ key: w.key, label: <span className="font-mono">{w.key}</span>, href: workloadHref("workspace", w.key), value: w.usd }))} />
           <div className="mt-5 border-t border-line pt-4">
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-sm font-bold">Serverless alert rules · last 30 days</h3>
@@ -68,16 +69,18 @@ export default function Serverless() {
 
       <SectionCard title="Serverless jobs by spend" body="Job ID does not change when a job is renamed, so it is the safe way to find the job." flush>
         <div className="px-5 pb-5 md:px-6 md:pb-6">
-          <DataTable
+          <SmartTable
+            search={(j) => `${j.jobName} ${j.jobId} ${j.runAs}`}
+            searchLabel="Filter jobs"
             caption="Serverless jobs by spend"
             rows={jobs}
             rowKey={(j) => j.jobId}
             columns={[
-              { key: "job", header: "Job", render: (j) => (<><p className="font-semibold">{j.jobName}</p><p className="mt-0.5 font-mono text-[11px] text-ink-muted">Job {j.jobId}</p></>) },
+              { key: "job", header: "Job", sort: (j) => j.jobName, render: (j) => <NameLink href={workloadHref("job", j.jobId)} name={j.jobName} sub={`Job ${j.jobId}`} /> },
               { key: "runas", header: "Runs as", render: (j) => <span className="text-xs">{j.runAs}</span> },
               { key: "ws", header: "Workspace", render: (j) => <span className="font-mono text-xs">{j.workspaceId}</span> },
-              { key: "runs", header: "Runs", align: "right", render: (j) => <span className="tabular font-mono">{j.runs}</span> },
-              { key: "cost", header: "Est. list cost", align: "right", render: (j) => <span className="tabular font-mono font-semibold">{usdExact(j.estimatedListCostUsd)}</span> },
+              { key: "runs", header: "Runs", align: "right", sort: (j) => j.runs, render: (j) => <span className="tabular font-mono">{j.runs}</span> },
+              { key: "cost", header: "Est. list cost", align: "right", sort: (j) => j.estimatedListCostUsd, render: (j) => <span className="tabular font-mono font-semibold">{usdExact(j.estimatedListCostUsd)}</span> },
             ]}
           />
         </div>
@@ -85,15 +88,17 @@ export default function Serverless() {
 
       <SectionCard title="Serverless notebooks by spend" body="Notebook ID stays the same if the notebook is moved or renamed." flush>
         <div className="px-5 pb-5 md:px-6 md:pb-6">
-          <DataTable
+          <SmartTable
+            search={(n) => `${n.notebookPath} ${n.runAs}`}
+            searchLabel="Filter notebooks"
             caption="Serverless notebooks by spend"
             rows={serverlessNotebooks}
             rowKey={(n) => n.notebookId}
             columns={[
-              { key: "path", header: "Notebook", render: (n) => (<><p className="font-mono text-xs font-semibold break-all">{n.notebookPath}</p><p className="mt-0.5 font-mono text-[11px] text-ink-muted">ID {n.notebookId}</p></>) },
+              { key: "path", header: "Notebook", sort: (n) => n.notebookPath, render: (n) => <NameLink href={workloadHref("notebook", n.notebookId)} name={n.notebookPath} sub={`ID ${n.notebookId}`} /> },
               { key: "runas", header: "Started by", render: (n) => <span className="text-xs">{n.runAs}</span> },
-              { key: "dbu", header: "DBUs", align: "right", render: (n) => <span className="tabular font-mono">{num(n.dbus)}</span> },
-              { key: "cost", header: "Est. list cost", align: "right", render: (n) => <span className="tabular font-mono font-semibold">{usd(n.estimatedListCostUsd)}</span> },
+              { key: "dbu", header: "DBUs", align: "right", sort: (n) => n.dbus, render: (n) => <span className="tabular font-mono">{num(n.dbus)}</span> },
+              { key: "cost", header: "Est. list cost", align: "right", sort: (n) => n.estimatedListCostUsd, render: (n) => <span className="tabular font-mono font-semibold">{usd(n.estimatedListCostUsd)}</span> },
             ]}
           />
         </div>

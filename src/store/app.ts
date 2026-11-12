@@ -20,6 +20,45 @@ export const useRange = create<{ choice: import("@/lib/range").RangeChoice }>()(
   }),
 );
 
+/**
+ * The data the app is showing: the built-in sample, or files the user uploaded.
+ * An upload is kept in the browser when it fits; a large one lasts until the
+ * tab is closed, and `kept` says which.
+ */
+export type DataSource = { kind: "sample" } | { kind: "upload"; files: string[]; loadedAt: string; rows: number };
+let uploadKept = true;
+const roomyStorage = {
+  getItem: (key: string) => localStorage.getItem(key),
+  removeItem: (key: string) => localStorage.removeItem(key),
+  setItem: (key: string, value: string) => {
+    try {
+      localStorage.setItem(key, value);
+      uploadKept = true;
+    } catch {
+      // Too large for browser storage: keep it in memory only.
+      localStorage.removeItem(key);
+      uploadKept = false;
+    }
+  },
+};
+export const wasUploadKept = () => uploadKept;
+export const useData = create<{ cache: import("@/data/contract").CostCache | null; source: DataSource }>()(
+  persist(() => ({ cache: null as import("@/data/contract").CostCache | null, source: { kind: "sample" } as DataSource }), {
+    name: "cost-investigator-data",
+    version: 1,
+    storage: createJSONStorage(() => roomyStorage),
+  }),
+);
+
+/** Budgets for a team, workspace or product, on top of the account budget. */
+export const useScopedBudgets = create<{ budgets: import("@/lib/budget").ScopedBudget[] }>()(
+  persist(() => ({ budgets: [] as import("@/lib/budget").ScopedBudget[] }), {
+    name: "cost-investigator-scoped-budgets",
+    version: 1,
+    storage: createJSONStorage(() => localStorage),
+  }),
+);
+
 /** The discounts in the customer's Databricks contract, as they entered them. */
 export const useDiscounts = create<{ discounts: import("@/lib/pricing").Discounts }>()(
   persist(() => ({ discounts: { overallPercent: 0, byProduct: {} } as import("@/lib/pricing").Discounts }), {
@@ -64,4 +103,6 @@ export function resetDemo() {
   useTeam.setState({ invited: [] });
   useRange.setState({ choice: { preset: "mtd" } });
   useDiscounts.setState({ discounts: { overallPercent: 0, byProduct: {} } });
+  useScopedBudgets.setState({ budgets: [] });
+  useData.setState({ cache: null, source: { kind: "sample" } });
 }

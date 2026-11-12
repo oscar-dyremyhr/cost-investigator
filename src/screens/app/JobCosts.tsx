@@ -3,11 +3,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight, BriefcaseBusiness, CircleX, RotateCcw } from "lucide-react";
-import { Badge, DataTable, DeltaPill, Segmented, StatTile, StatusPill, Term } from "@/design-system/components";
+import { Badge, DeltaPill, Segmented, SmartTable, StatTile, StatusPill, Term } from "@/design-system/components";
+import { workloadHref } from "@/lib/links";
 import { change, usd, usdExact } from "@/lib/format";
 import { useRecommendationList, useUsage } from "@/lib/use-app-state";
 import type { Usage } from "@/mocks/service";
-import { Page, PageHeader, SectionCard, SourceNote } from "./parts";
+import { NameLink, Page, PageHeader, SectionCard, SourceNote } from "./parts";
 import { RangePicker } from "./RangePicker";
 
 type View = "jobs" | "runs" | "trend" | "failed" | "retries";
@@ -21,12 +22,8 @@ const views: { value: View; label: string; title: string; body: string }[] = [
   { value: "retries", label: "Retries", title: "Repairs and retries", body: "Runs that needed more than one attempt, and the cost of the unsuccessful attempts." },
 ];
 
-const jobCell = (j: { jobName: string; jobId: string }) => (
-  <>
-    <p className="font-semibold">{j.jobName}</p>
-    <p className="mt-0.5 font-mono text-[11px] text-ink-muted">Job {j.jobId}</p>
-  </>
-);
+const jobCell = (j: { jobName: string; jobId: string }) => <NameLink href={workloadHref("job", j.jobId)} name={j.jobName} sub={`Job ${j.jobId}`} />;
+const jobSearch = (j: { jobName: string; jobId: string }) => `${j.jobName} ${j.jobId}`;
 const mono = (v: string | number) => <span className="tabular font-mono">{v}</span>;
 
 export default function JobCosts() {
@@ -64,75 +61,85 @@ export default function JobCosts() {
       <SectionCard title={current.title} body={current.body} flush action={<div className="max-w-full overflow-x-auto"><Segmented label="Job analysis" value={view} onChange={setView} options={views.map((v) => ({ value: v.value, label: v.label }))} /></div>}>
         <div className="px-5 pb-5 md:px-6 md:pb-6">
           {view === "jobs" ? (
-            <DataTable<Job>
+            <SmartTable<Job>
+              search={(j) => `${jobSearch(j)} ${j.runAs} ${j.team}`}
+              searchLabel="Filter jobs"
               caption={current.title}
               rows={topJobs}
               rowKey={(j) => j.jobId}
               columns={[
-                { key: "job", header: "Job", render: jobCell },
+                { key: "job", header: "Job", sort: (j) => j.jobName, render: jobCell },
                 { key: "compute", header: "Compute", render: (j) => <Badge tone={j.serverless ? "brand" : "neutral"}>{j.serverless ? "Serverless" : "Job compute"}</Badge> },
-                { key: "runas", header: "Runs as", render: (j) => <span className="text-xs">{j.runAs}</span> },
-                { key: "tag", header: "Team tag", render: (j) => (j.team ? <span className="font-mono text-xs">{j.team}</span> : <StatusPill size="sm" status="watch" label="No tag" />) },
-                { key: "runs", header: "Runs", align: "right", render: (j) => mono(j.runs) },
-                { key: "cost", header: "Est. list cost", align: "right", render: (j) => <span className="tabular font-mono font-semibold">{usdExact(j.estimatedListCostUsd)}</span> },
+                { key: "runas", header: "Runs as", sort: (j) => j.runAs, render: (j) => <span className="text-xs">{j.runAs}</span> },
+                { key: "tag", header: "Team tag", sort: (j) => j.team, render: (j) => (j.team ? <span className="font-mono text-xs">{j.team}</span> : <StatusPill size="sm" status="watch" label="No tag" />) },
+                { key: "runs", header: "Runs", align: "right", sort: (j) => j.runs, render: (j) => mono(j.runs) },
+                { key: "cost", header: "Est. list cost", align: "right", sort: (j) => j.estimatedListCostUsd, render: (j) => <span className="tabular font-mono font-semibold">{usdExact(j.estimatedListCostUsd)}</span> },
               ]}
             />
           ) : null}
           {view === "runs" ? (
-            <DataTable
+            <SmartTable
+              search={jobSearch}
+              searchLabel="Filter runs"
               caption={current.title}
               empty={<p className="rounded-card border border-dashed border-line-strong p-6 text-center text-sm text-ink-muted">No sample runs fall inside this date range.</p>}
               rows={topJobRuns}
               rowKey={(r) => r.runId}
               columns={[
                 { key: "run", header: "Run", render: (r) => <span className="font-mono text-xs">{r.runId}</span> },
-                { key: "job", header: "Job", render: jobCell },
+                { key: "job", header: "Job", sort: (j) => j.jobName, render: jobCell },
                 { key: "start", header: "Started", render: (r) => <span className="text-xs text-ink-muted">{r.started}</span> },
-                { key: "min", header: "Minutes", align: "right", render: (r) => mono(r.minutes) },
+                { key: "min", header: "Minutes", align: "right", sort: (r) => r.minutes, render: (r) => mono(r.minutes) },
                 { key: "state", header: "Result", render: (r) => <StatusPill size="sm" status={r.resultState === "SUCCEEDED" ? "pass" : "fix"} label={r.resultState} /> },
-                { key: "cost", header: "Est. list cost", align: "right", render: (r) => <span className="tabular font-mono font-semibold">{usdExact(r.estimatedListCostUsd)}</span> },
+                { key: "cost", header: "Est. list cost", align: "right", sort: (r) => r.estimatedListCostUsd, render: (r) => <span className="tabular font-mono font-semibold">{usdExact(r.estimatedListCostUsd)}</span> },
               ]}
             />
           ) : null}
           {view === "trend" ? (
-            <DataTable<Job>
+            <SmartTable<Job>
+              search={(j) => `${jobSearch(j)} ${j.runAs} ${j.team}`}
+              searchLabel="Filter jobs"
               caption={current.title}
               rows={byTrend}
               rowKey={(j) => j.jobId}
               columns={[
-                { key: "job", header: "Job", render: jobCell },
+                { key: "job", header: "Job", sort: (j) => j.jobName, render: jobCell },
                 { key: "prev", header: usage.trendWindows.prev7 ?? "Week before", align: "right", render: (j) => mono(j.prev7Usd === null ? "–" : usd(j.prev7Usd)) },
-                { key: "last", header: usage.trendWindows.last7, align: "right", render: (j) => mono(usd(j.last7Usd)) },
-                { key: "growth", header: "Growth", align: "right", render: (j) => mono(j.prev7Usd === null ? "–" : `${j.last7Usd >= j.prev7Usd ? "+" : "−"}${usd(Math.abs(j.last7Usd - j.prev7Usd))}`) },
+                { key: "last", header: usage.trendWindows.last7, align: "right", sort: (j) => j.last7Usd, render: (j) => mono(usd(j.last7Usd)) },
+                { key: "growth", header: "Growth", align: "right", sort: (j) => j.last7Usd - (j.prev7Usd ?? 0), render: (j) => mono(j.prev7Usd === null ? "–" : `${j.last7Usd >= j.prev7Usd ? "+" : "−"}${usd(Math.abs(j.last7Usd - j.prev7Usd))}`) },
                 { key: "pct", header: "Change", align: "right", render: (j) => (j.prev7Usd === null ? <span className="text-xs text-ink-muted">Not cached</span> : <DeltaPill percent={change(j.last7Usd, j.prev7Usd)} />) },
               ]}
             />
           ) : null}
           {view === "failed" ? (
-            <DataTable<Job>
+            <SmartTable<Job>
+              search={(j) => `${jobSearch(j)} ${j.runAs} ${j.team}`}
+              searchLabel="Filter jobs"
               caption={current.title}
               rows={[...topJobs].sort((a, b) => b.failedCostUsd - a.failedCostUsd)}
               rowKey={(j) => j.jobId}
               columns={[
-                { key: "job", header: "Job", render: jobCell },
-                { key: "runs", header: "Runs", align: "right", render: (j) => mono(j.runs) },
-                { key: "failed", header: "Failed", align: "right", render: (j) => mono(j.failedRuns) },
+                { key: "job", header: "Job", sort: (j) => j.jobName, render: jobCell },
+                { key: "runs", header: "Runs", align: "right", sort: (j) => j.runs, render: (j) => mono(j.runs) },
+                { key: "failed", header: "Failed", align: "right", sort: (j) => j.failedRuns, render: (j) => mono(j.failedRuns) },
                 { key: "ratio", header: "Success", align: "right", render: (j) => mono(j.runs ? `${(((j.runs - j.failedRuns) / j.runs) * 100).toFixed(0)}%` : "–") },
-                { key: "cost", header: "Cost of failures", align: "right", render: (j) => <span className="tabular font-mono font-semibold">{usdExact(j.failedCostUsd)}</span> },
+                { key: "cost", header: "Cost of failures", align: "right", sort: (j) => j.failedCostUsd, render: (j) => <span className="tabular font-mono font-semibold">{usdExact(j.failedCostUsd)}</span> },
               ]}
             />
           ) : null}
           {view === "retries" ? (
-            <DataTable<Job>
+            <SmartTable<Job>
+              search={(j) => `${jobSearch(j)} ${j.runAs} ${j.team}`}
+              searchLabel="Filter jobs"
               caption={current.title}
               empty={<p className="rounded-card border border-dashed border-line-strong p-6 text-center text-sm text-ink-muted">No run needed a repair in this date range.</p>}
               rows={topJobs.filter((j) => j.repairs > 0).sort((a, b) => b.repairCostUsd - a.repairCostUsd)}
               rowKey={(j) => j.jobId}
               columns={[
-                { key: "job", header: "Job", render: jobCell },
-                { key: "repairs", header: "Repairs", align: "right", render: (j) => mono(j.repairs) },
+                { key: "job", header: "Job", sort: (j) => j.jobName, render: jobCell },
+                { key: "repairs", header: "Repairs", align: "right", sort: (j) => j.repairs, render: (j) => mono(j.repairs) },
                 { key: "time", header: "Time to repair", align: "right", render: (j) => mono(`${j.repairMinutes} min`) },
-                { key: "cost", header: "Cost of repairs", align: "right", render: (j) => <span className="tabular font-mono font-semibold">{usdExact(j.repairCostUsd)}</span> },
+                { key: "cost", header: "Cost of repairs", align: "right", sort: (j) => j.repairCostUsd, render: (j) => <span className="tabular font-mono font-semibold">{usdExact(j.repairCostUsd)}</span> },
               ]}
             />
           ) : null}

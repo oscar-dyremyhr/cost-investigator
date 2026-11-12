@@ -11,6 +11,7 @@ export * from "./Logo";
 export * from "./Modal";
 export * from "./Penny";
 export * from "./PlanCard";
+export * from "./SmartTable";
 export * from "./StatTile";
 export * from "./Stamp";
 export * from "./StatusPill";

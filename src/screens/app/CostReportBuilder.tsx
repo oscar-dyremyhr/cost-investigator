@@ -8,7 +8,7 @@ import { reportAudiences, reportSections, type ReportAudienceId, type ReportSect
 import { createCostReport, saveCostReport } from "@/lib/cost-report";
 import { describeRange, type RangeChoice } from "@/lib/range";
 import { usd } from "@/lib/format";
-import { useAlerts, useBudget, useNegotiatedPrices, useRecommendationList, useRecommendationStatuses, useRecommendationSummary, useUsage } from "@/lib/use-app-state";
+import { useAlerts, useBudget, useCache, useNegotiatedPrices, useRecommendationList, useRecommendationStatuses, useRecommendationSummary, useUsage } from "@/lib/use-app-state";
 import { Page, PageHeader, SampleBadge, SectionCard } from "./parts";
 import { RangeFields } from "./RangePicker";
 
@@ -21,6 +21,7 @@ export default function CostReportBuilder() {
   const alerts = useAlerts();
   const findings = useRecommendationList();
   const discounts = useNegotiatedPrices();
+  const { cache } = useCache();
   const { budget, projection } = useBudget();
   const [title, setTitle] = useState("Databricks Cost Review");
   const [organization, setOrganization] = useState("Northstar Commerce");
@@ -32,7 +33,7 @@ export default function CostReportBuilder() {
   const shown = useUsage();
   const [picked, setPicked] = useState<RangeChoice | null>(null);
   const rangeChoice = picked ?? shown.choice;
-  const period = useMemo(() => describeRange(rangeChoice), [rangeChoice]);
+  const period = useMemo(() => describeRange(rangeChoice, cache), [rangeChoice, cache]);
   const firing = alerts.filter((a) => a.rule.enabled && a.result.triggered);
 
   const pickAudience = (id: ReportAudienceId) => {
@@ -49,6 +50,7 @@ export default function CostReportBuilder() {
         statuses,
         recommendations: findings,
         discounts,
+        cache,
         budget: { ...budget, projection },
         alerts: firing.map(({ rule, result }) => ({ name: rule.name, detail: result.matches.length === 1 ? result.matches[0].label : `${result.matches.length} over the threshold` })),
       },
@@ -76,10 +78,10 @@ export default function CostReportBuilder() {
           </SectionCard>
 
           <SectionCard title="2. Which dates?" body="The report covers these dates only. This month, last month, the quarter, the year so far, or your own dates.">
-            <RangeFields idPrefix="report" choice={rangeChoice} onChange={setPicked} />
+            <RangeFields idPrefix="report" choice={rangeChoice} onChange={setPicked} bounds={cache} />
             <p className="mt-3 text-sm text-ink-muted" data-testid="report-period">
               {period.label} · {period.usage.days} days · {usd(period.usage.totalUsd)} at list price
-              {period.cutShort ? ". The cache starts on Sep 1, so earlier days are not included." : "."}
+              {period.cutShort ? `. The data starts on ${cache.from}, so earlier days are not included.` : "."}
             </p>
           </SectionCard>
 
