@@ -26,7 +26,7 @@ export function DataTable<T>({
 }) {
   if (rows.length === 0 && empty) return <>{empty}</>;
   return (
-    <div className={cn("overflow-x-auto rounded-card border border-line bg-surface print-plain", className)}>
+    <div className={cn("relative overflow-x-auto rounded-card border border-line bg-surface print-plain", className)}>
       <table className="w-full min-w-[36rem] border-collapse text-left text-sm">
         <caption className="sr-only">{caption}</caption>
         <thead>

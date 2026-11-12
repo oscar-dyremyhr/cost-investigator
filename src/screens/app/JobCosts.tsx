@@ -61,7 +61,7 @@ export default function JobCosts() {
         <StatTile label="Cost of repairs" value={usdExact(repairCost)} sub="Unsuccessful attempts before a success" foot="A subset of failed-run cost" icon={<RotateCcw aria-hidden />} />
       </section>
 
-      <SectionCard title={current.title} body={current.body} flush action={<Segmented label="Job analysis" value={view} onChange={setView} options={views.map((v) => ({ value: v.value, label: v.label }))} />}>
+      <SectionCard title={current.title} body={current.body} flush action={<div className="max-w-full overflow-x-auto"><Segmented label="Job analysis" value={view} onChange={setView} options={views.map((v) => ({ value: v.value, label: v.label }))} /></div>}>
         <div className="px-5 pb-5 md:px-6 md:pb-6">
           {view === "jobs" ? (
             <DataTable<Job>

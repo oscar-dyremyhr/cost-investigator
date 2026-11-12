@@ -235,7 +235,7 @@ export default function Settings() {
           Cost Investigator has read-only access to the billing <Term k="systemTables">system tables</Term>. Your business data stays in your <Term k="workspace">workspace</Term>.
         </p>
         <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-          <Badge tone="brand">Signed in as {SERVICE_PRINCIPAL} (service principal, read-only)</Badge>
+          <Badge tone="brand" className="whitespace-normal">Signed in as {SERVICE_PRINCIPAL} (service principal, read-only)</Badge>
           <Link href="/setup" target="_blank" className="font-semibold text-brand underline-offset-4 hover:underline">
             How the connection works
           </Link>
