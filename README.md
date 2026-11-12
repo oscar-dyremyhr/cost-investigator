@@ -33,15 +33,24 @@ The app screens share one shell (`src/screens/app/AppShell.tsx`). Cost logic liv
 
 Things the sample deliberately mirrors from the Databricks guides: job cost covers only job compute and serverless (jobs on SQL warehouses or all-purpose compute are not billed as jobs); several features share the serverless jobs SKU and are told apart by `billing_origin_product`; corrections arrive as `RETRACTION` and `RESTATEMENT` rows, so signed quantities are summed. The Databricks examples multiply by `pricing.default`; this app uses `pricing.effective_list.default` so promotions are included. The prices on `/prices` are invented for the demo, and the SQL shown beside recommendations is a sketch that has not been run against a live workspace.
 
-## What the dashboard models
+## The data, and connecting a real account
 
-- `system.billing.usage` fields: usage date/time, workspace, cloud, SKU, billing origin product, usage quantity/unit, and custom tags.
-- A price lookup against `system.billing.list_prices`, using the SKU, cloud, usage unit, and price validity interval to calculate an estimated list cost.
-- Usage trends, billing product breakdown, DBU quantity (DBU rows only), workspace counts, and tag coverage.
-- Monthly budget pacing and a simple month-end run-rate projection, with browser-saved alert thresholds.
-- Job-attributed list cost by job, modeled on billing usage plus `system.lakeflow.jobs`; job runs can be counted using `usage_metadata.job_run_id`.
+The app never reads fixtures directly. It reads a **cache of system-table rows** and answers every page and report from it:
 
-The system table supports retractions and restatements; aggregate signed usage rather than filtering only `ORIGINAL` rows. Original records typically become available within 12 hours. List-price estimates are not invoice totals and may differ due to negotiated discounts, credits, entitlements or taxes. Billing records alone do not establish budget limits, idle time, job schedules, resource ownership, or realizable savings.
+```text
+Databricks system tables ──SQL──▶ CostDataSource ──loadCache──▶ CostCache ──queryUsage(range)──▶ screens and reports
+        (src/data/sql.ts)        (src/data/contract.ts)                    (src/mocks/query.ts)
+```
+
+- `src/data/contract.ts` defines the rows, using Databricks' own column names (`usage_date`, `sku_name`, `billing_origin_product`, `usage_quantity`, `job_id`, `endpoint_name`, `run_as`, `custom_tags`, `is_serverless`, `serving_type`, `performance_target` …), and a five-method `CostDataSource`: `usageDaily`, `listPrices`, `jobs`, `jobHealthDaily`, `topJobRuns`.
+- `src/data/sql.ts` holds the SQL for each method. Cost is `usage_quantity × pricing.effective_list.default`, joined on SKU, cloud, unit and the price period, with signed quantities summed so corrections net out.
+- `src/mocks/cache.ts` is the sample: 72 days (Sep 1 – Nov 11, 2026) for a fictional account with 4 workspaces, 9 jobs, 3 SQL warehouses, 2 clusters, 2 pipelines, 5 serving endpoints and 4 serverless notebooks, including a price change and a promotion.
+
+To plug in a real account: implement `CostDataSource` by running each statement on a SQL warehouse (for example with the Statement Execution API, signed in as a read-only service principal), call `loadCache` on a schedule, and pass that cache to `queryUsage` in place of `sampleCache`. The screens do not change.
+
+What is not real yet: the SQL has not been run against a live workspace, so test it on yours first. Recommendations are still a fixed sample list rather than rules computed from the cache. The prices are invented. Job cost only covers job compute and serverless, and reads one cloud region at a time.
+
+The date range (this month, last month, last 7 or 30 days, this quarter, this year, or custom dates) is chosen at the top of each usage page and in the report builder. Alerts always look at the last 30 days and the budget at the current month.
 
 ## Proposed pricing
 

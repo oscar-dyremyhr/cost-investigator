@@ -57,7 +57,7 @@ export default function CostReportHistory() {
       {comparison ? (
         <SectionCard
           title="What changed between the two"
-          body={`${when(comparison.before.createdAt)} to ${when(comparison.after.createdAt)}`}
+          body={`${comparison.before.period} compared with ${comparison.after.period}`}
           action={<Button variant="secondary" size="sm" onClick={() => setCompareIds([])}>Clear</Button>}
         >
           <div className="grid gap-3 sm:grid-cols-3">
