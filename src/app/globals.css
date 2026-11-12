@@ -4,12 +4,224 @@
 @import "../design-system/tokens.css";
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 @theme inline {
- --color-paper:var(--paper); --color-paper-deep:var(--paper-deep); --color-surface:var(--surface); --color-ink:var(--ink); --color-ink-muted:var(--ink-muted); --color-brand:var(--brand); --color-brand-ink:var(--brand-ink); --color-brand-soft:var(--brand-soft); --color-mint:var(--mint); --color-sun:var(--sun); --color-on-accent:var(--on-accent); --color-line:var(--line); --color-line-strong:var(--line-strong); --color-overlay:var(--overlay); --color-pass:var(--status-pass); --color-pass-ink:var(--status-pass-ink); --color-pass-soft:var(--status-pass-soft); --color-watch:var(--status-watch); --color-watch-ink:var(--status-watch-ink); --color-watch-soft:var(--status-watch-soft); --color-fix:var(--status-fix); --color-fix-ink:var(--status-fix-ink); --color-fix-soft:var(--status-fix-soft); --font-sans:var(--font-inter),ui-sans-serif,system-ui,sans-serif; --font-heading:var(--font-bricolage),var(--font-inter),sans-serif; --font-mono:var(--font-jetbrains),ui-monospace,monospace; --radius-card:var(--r-card); --ease-spring:cubic-bezier(.34,1.56,.64,1);
+  /* Cost Investigator tokens → Tailwind utilities (bg-paper, text-ink, border-line …) */
+  --color-paper: var(--paper);
+  --color-paper-deep: var(--paper-deep);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-brand: var(--brand);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-soft: var(--brand-soft);
+  --color-mint: var(--mint);
+  --color-sun: var(--sun);
+  --color-on-accent: var(--on-accent);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-pass: var(--status-pass);
+  --color-pass-ink: var(--status-pass-ink);
+  --color-pass-soft: var(--status-pass-soft);
+  --color-watch: var(--status-watch);
+  --color-watch-ink: var(--status-watch-ink);
+  --color-watch-soft: var(--status-watch-soft);
+  --color-fix: var(--status-fix);
+  --color-fix-ink: var(--status-fix-ink);
+  --color-fix-soft: var(--status-fix-soft);
+  --color-overlay: var(--overlay);
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-bricolage), var(--font-inter), ui-sans-serif, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, "SF Mono", monospace;
+
+  --radius-input: var(--r-input);
+  --radius-card: var(--r-card);
+  --shadow-card: var(--sh-card);
+  --shadow-pop: var(--sh-pop);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* shadcn/ui semantic names, mapped onto the Cost Investigator tokens so any
+     component added with `npx shadcn add` is on-brand out of the box. */
+  --color-background: var(--paper);
+  --color-foreground: var(--ink);
+  --color-card: var(--surface);
+  --color-card-foreground: var(--ink);
+  --color-popover: var(--surface);
+  --color-popover-foreground: var(--ink);
+  --color-primary: var(--brand);
+  --color-primary-foreground: var(--brand-ink);
+  --color-secondary: var(--paper-deep);
+  --color-secondary-foreground: var(--ink);
+  --color-muted: var(--paper-deep);
+  --color-muted-foreground: var(--ink-muted);
+  --color-accent: var(--brand-soft);
+  --color-accent-foreground: var(--ink);
+  --color-destructive: var(--status-fix);
+  --color-border: var(--line);
+  --color-input: var(--line-strong);
+  --color-ring: var(--brand);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
 }
-*{box-sizing:border-box} html{scroll-behavior:smooth} body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font-inter),sans-serif} button,a{transition:all .18s ease} button{cursor:pointer} :focus-visible{outline:2px solid var(--brand);outline-offset:2px} ::selection{background:var(--sun);color:var(--ink)}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-card);box-shadow:var(--sh-card)} .mono{font-family:var(--font-jetbrains),monospace;font-variant-numeric:tabular-nums} .sidebar-link{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;color:var(--ink-muted);font-size:14px;font-weight:550}.sidebar-link:hover,.sidebar-link.active{background:var(--brand-soft);color:var(--brand)}
-@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.001ms!important;transition-duration:.001ms!important}}
-@page{size:A4;margin:16mm}
-@media print{body *{visibility:hidden!important}.report-preview,.report-preview *{visibility:visible!important}.report-preview{position:absolute!important;inset:0!important;width:100%!important;max-width:none!important;border:0!important;box-shadow:none!important;background:white!important;color:#14161f!important}.report-preview button{display:none!important}.report-preview{-webkit-print-color-adjust:exact;print-color-adjust:exact}.print-page-break{break-before:page;page-break-before:always}.break-inside-avoid{break-inside:avoid;page-break-inside:avoid}}
-.zigzag-paper{--zz:7px;mask:conic-gradient(from -45deg at bottom,#0000,#000 1deg 89deg,#0000 90deg) 50%/calc(2*var(--zz)) 100%}
+
+@layer base {
+  * {
+    @apply border-line outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-paper text-ink;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-heading;
+    text-wrap: balance;
+  }
+  :focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: var(--sun);
+    color: var(--on-accent);
+  }
+  button,
+  [role="button"],
+  summary {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+  a,
+  button {
+    transition: all 0.18s ease;
+  }
+}
+
+@layer components {
+  /* Receipt-paper zigzag bottom edge. Mask values are alpha only, not colours. */
+  .zigzag-bottom {
+    --zz: 7px;
+    padding-bottom: calc(var(--zz) + 0.75rem);
+    mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% /
+      calc(2 * var(--zz)) 100%;
+  }
+  .zigzag-top {
+    --zz: 7px;
+    padding-top: calc(var(--zz) + 0.75rem);
+    mask: conic-gradient(from 135deg at top, #0000, #000 1deg 89deg, #0000 90deg) 50% /
+      calc(2 * var(--zz)) 100%;
+  }
+  .paper-shadow {
+    filter: drop-shadow(0 6px 14px rgb(from var(--ink) r g b / 0.1));
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+  .dashed-rule {
+    border-top: 2px dashed var(--line);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* ---------- App helpers used by the existing screens ---------- */
+@layer components {
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-card);
+    box-shadow: var(--sh-card);
+  }
+  .mono {
+    font-family: var(--font-jetbrains), ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+  .sidebar-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    color: var(--ink-muted);
+    font-size: 14px;
+    font-weight: 550;
+  }
+  .sidebar-link:hover,
+  .sidebar-link.active {
+    background: var(--brand-soft);
+    color: var(--brand);
+  }
+  /* Receipt-paper edge for the landing hero. Mask values are alpha only, not colours. */
+  .zigzag-paper {
+    --zz: 7px;
+    mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% /
+      calc(2 * var(--zz)) 100%;
+  }
+}
+
+/* ---------- Print: only the cost report is printed, as a clean PDF ---------- */
+@page {
+  size: A4;
+  margin: 16mm;
+}
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  .print-plain {
+    box-shadow: none !important;
+    filter: none !important;
+    border-color: var(--line) !important;
+  }
+  body * {
+    visibility: hidden !important;
+  }
+  .report-preview,
+  .report-preview * {
+    visibility: visible !important;
+  }
+  .report-preview {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    background: var(--surface) !important;
+    color: var(--ink) !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .report-preview button {
+    display: none !important;
+  }
+  .print-page-break {
+    break-before: page;
+    page-break-before: always;
+  }
+  .break-inside-avoid {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}

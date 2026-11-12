@@ -4,3 +4,5 @@ export { initialOnboardingSetup, onboardingGrantSql, onboardingSteps, onboarding
 export type { OnboardingSetup } from "./onboarding";
 export { pricingFaqs } from "./pricing-copy";
 export { setupGrantSql, setupPermissions } from "./setup-guide";
+export { copy } from "./ui";
+export type { EvidenceType, Status } from "./ui";
