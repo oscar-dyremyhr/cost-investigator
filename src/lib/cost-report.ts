@@ -3,7 +3,8 @@ import type { RecommendationStatus } from "@/lib/recommendations";
 import { statusOf } from "@/lib/recommendations";
 import { serverlessSpend } from "@/lib/serverless";
 import { describeRange, type RangeChoice } from "@/lib/range";
-import { savingsRecommendations } from "@/mocks/service";
+import { applyDiscounts, hasDiscounts, noDiscounts, type Discounts } from "@/lib/pricing";
+import type { Recommendation } from "@/lib/recommend";
 
 const STORAGE_KEY = "cost-investigator-reports-v1";
 
@@ -27,6 +28,8 @@ export type CostReport = {
   dbus: number;
   workspaces: number;
   records: number;
+  /** The cost after the customer's negotiated discounts, and the blended discount. 0% when none are set. */
+  discount: { percent: number; netCost: number };
   budget: { amount: number; alertAt: number; projection: number };
   products: { product: string; label: string; skuCount: number; usageQuantity: number; usageUnit: string; estimatedListCostUsd: number; share: number }[];
   jobs: { jobName: string; jobId: string; workspaceId: string; runs: number; lastSeen: string; estimatedListCostUsd: number; failedRuns: number; failedCostUsd: number }[];
@@ -43,6 +46,9 @@ export type ReportContext = {
   statuses: Record<string, RecommendationStatus>;
   alerts: { name: string; detail: string }[];
   budget: { amount: number; alertAt: number; projection: number };
+  /** The current findings, computed from the cache. */
+  recommendations: Recommendation[];
+  discounts?: Discounts;
 };
 
 const sectionIds = reportSections.map((s) => s.id) as ReportSectionId[];
@@ -54,6 +60,7 @@ export function createCostReport(input: ReportInput, context: ReportContext, now
   // The report queries the cached data for its own date range, independent of what the pages show.
   const { usage, label, previousUsd, previousLabel } = describeRange(input.range ?? { preset: "mtd" });
   const serverless = serverlessSpend(usage);
+  const net = applyDiscounts(usage.products, context.discounts ?? noDiscounts);
   return {
     version: 2,
     id: makeId("cost-report"),
@@ -73,13 +80,14 @@ export function createCostReport(input: ReportInput, context: ReportContext, now
     dbus: usage.dbus,
     workspaces: usage.workspaceCount,
     records: usage.records,
+    discount: hasDiscounts(context.discounts ?? noDiscounts) ? { percent: Math.round(net.blendedPercent * 10) / 10, netCost: net.netUsd } : { percent: 0, netCost: usage.totalUsd },
     budget: context.budget,
     products: usage.products.map(({ product, label: name, skuCount, usageQuantity, usageUnit, estimatedListCostUsd, share }) => ({ product, label: name, skuCount, usageQuantity, usageUnit, estimatedListCostUsd, share })),
     jobs: usage.jobs.map(({ jobName, jobId, workspaceId, runs, lastSeen, estimatedListCostUsd, failedRuns, failedCostUsd }) => ({ jobName, jobId, workspaceId, runs, lastSeen, estimatedListCostUsd, failedRuns, failedCostUsd })),
     serverless: { totalUsd: serverless.totalUsd, jobsUsd: serverless.jobsUsd, notebooksUsd: serverless.notebooksUsd, byUser: serverless.byUser.map(({ label: who, usd }) => ({ label: who, usd })) },
     endpoints: usage.endpoints.map(({ endpointName, servingType, businessUnit, dbus, estimatedListCostUsd }) => ({ endpointName, servingType, businessUnit, dbus, estimatedListCostUsd })),
     alerts: context.alerts,
-    recommendations: savingsRecommendations
+    recommendations: context.recommendations
       .map(({ id, title, category, jobName, evidence, action, opportunityLowUsd, opportunityHighUsd }) => ({ id, title, category, jobName, evidence, action, opportunityLowUsd, opportunityHighUsd, status: statusOf(context.statuses, id) }))
       .filter((r) => r.status === "open" || r.status === "planned"),
     isSample: true,
@@ -104,6 +112,7 @@ export function normalizeReport(raw: unknown): CostReport | null {
   const budget = isRecord(raw.budget) ? raw.budget : {};
   const serverless = isRecord(raw.serverless) ? raw.serverless : {};
   const audience = str(raw.audience);
+  const discount = isRecord(raw.discount) ? raw.discount : {};
   return {
     version: 2,
     id: str(raw.id),
@@ -122,6 +131,7 @@ export function normalizeReport(raw: unknown): CostReport | null {
     dbus: numOr(raw.dbus),
     workspaces: numOr(raw.workspaces),
     records: numOr(raw.records),
+    discount: { percent: Math.min(100, Math.max(0, numOr(discount.percent))), netCost: numOr(discount.netCost, numOr(raw.estimatedListCost)) },
     budget: { amount: numOr(budget.amount), alertAt: numOr(budget.alertAt), projection: numOr(budget.projection) },
     products: list(raw.products).map((p) => ({ product: str(p.product), label: str(p.label), skuCount: numOr(p.skuCount), usageQuantity: numOr(p.usageQuantity), usageUnit: str(p.usageUnit, "DBU"), estimatedListCostUsd: numOr(p.estimatedListCostUsd), share: numOr(p.share) })),
     jobs: list(raw.jobs).map((j) => ({ jobName: str(j.jobName), jobId: str(j.jobId), workspaceId: str(j.workspaceId), runs: numOr(j.runs), lastSeen: str(j.lastSeen), estimatedListCostUsd: numOr(j.estimatedListCostUsd), failedRuns: numOr(j.failedRuns), failedCostUsd: numOr(j.failedCostUsd) })),
@@ -210,6 +220,7 @@ export function reportToCsv(report: CostReport) {
   const rows: (string | number)[][] = [["section", "item", "detail", "quantity", "unit", "estimated_list_cost_usd"]];
   rows.push(["Summary", report.organization, report.period, report.dbus, "DBU", report.estimatedListCost]);
   if (report.comparison && report.previousPeriodListCost) rows.push(["Summary", "Compared with", report.comparison, "", "", report.previousPeriodListCost]);
+  if (report.discount.percent > 0) rows.push(["Summary", "After negotiated discount", `${report.discount.percent}% blended`, "", "", report.discount.netCost]);
   if (has(report, "products")) for (const p of report.products) rows.push(["Billing product", p.label, p.product, p.usageQuantity, p.usageUnit, p.estimatedListCostUsd]);
   if (has(report, "jobs")) {
     for (const j of report.jobs) {
@@ -236,6 +247,7 @@ export function reportToSummary(report: CostReport) {
     "",
     `Estimated list cost: ${money(report.estimatedListCost)}${report.comparison && report.previousPeriodListCost ? ` (${change >= 0 ? "+" : ""}${change.toFixed(1)}% vs ${report.comparison})` : ""}.`,
   ];
+  if (report.discount.percent > 0) lines.push(`After your ${report.discount.percent}% negotiated discount: about ${money(report.discount.netCost)}.`);
   if (report.budget.amount) lines.push(`Projected end of the current month: ${money(report.budget.projection)}, ${Math.round((report.budget.projection / report.budget.amount) * 100)}% of the ${money(report.budget.amount)} budget.`);
   if (has(report, "products") && report.products.length) {
     lines.push("", "Largest products:");

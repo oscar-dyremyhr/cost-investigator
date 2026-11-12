@@ -20,6 +20,15 @@ export const useRange = create<{ choice: import("@/lib/range").RangeChoice }>()(
   }),
 );
 
+/** The discounts in the customer's Databricks contract, as they entered them. */
+export const useDiscounts = create<{ discounts: import("@/lib/pricing").Discounts }>()(
+  persist(() => ({ discounts: { overallPercent: 0, byProduct: {} } as import("@/lib/pricing").Discounts }), {
+    name: "cost-investigator-discounts",
+    version: 1,
+    storage: createJSONStorage(() => localStorage),
+  }),
+);
+
 export type AlertOverride = { threshold?: number; enabled?: boolean };
 
 /** Per-rule overrides of the default alert rules. */
@@ -54,4 +63,5 @@ export function resetDemo() {
   useAlertRules.setState({ overrides: {} });
   useTeam.setState({ invited: [] });
   useRange.setState({ choice: { preset: "mtd" } });
+  useDiscounts.setState({ discounts: { overallPercent: 0, byProduct: {} } });
 }

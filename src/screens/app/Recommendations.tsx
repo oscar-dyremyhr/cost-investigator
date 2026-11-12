@@ -5,16 +5,17 @@ import { Check, Lightbulb, ListChecks, Search } from "lucide-react";
 import { Badge, Button, CodeBlock, DataTable, Drawer, Segmented, StatTile, toast } from "@/design-system/components";
 import { usd } from "@/lib/format";
 import { sortRecommendations, statusOf, type RecommendationStatus } from "@/lib/recommendations";
-import { useRecommendationStatuses, useRecommendationSummary } from "@/lib/use-app-state";
-import { savingsRecommendations, type Recommendation } from "@/mocks/service";
+import type { Recommendation } from "@/lib/recommend";
+import { useRecommendationList, useRecommendationStatuses, useRecommendationSummary } from "@/lib/use-app-state";
 import { useRecommendations } from "@/store/app";
-import { Page, PageHeader, SampleBadge } from "./parts";
+import { Page, PageHeader } from "./parts";
 
 const statusLabels: Record<RecommendationStatus, string> = { open: "Open", planned: "Planned", done: "Done", dismissed: "Dismissed" };
 const range = (r: Recommendation) => (r.opportunityHighUsd ? `${usd(r.opportunityLowUsd)}–${usd(r.opportunityHighUsd)}` : "Not quantified");
 type Filter = "active" | "all";
 
 export default function Recommendations() {
+  const savingsRecommendations = useRecommendationList();
   const statuses = useRecommendationStatuses();
   const summary = useRecommendationSummary();
   const [filter, setFilter] = useState<Filter>("active");
@@ -33,14 +34,14 @@ export default function Recommendations() {
       <PageHeader
         eyebrow="Recommendations"
         title="What to look at next"
-        body="Each finding names the signal, the thing it is about and a next step. You decide; nothing here changes your workspace."
-        actions={<SampleBadge />}
+        body="Worked out from the last 30 days of usage, run history and compute settings. Each finding shows the rule and the rows behind it. You decide; nothing here changes your workspace."
+        actions={<Badge>Computed from the last 30 days</Badge>}
       />
 
       <section aria-label="Summary" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile label="Open" value={String(summary.counts.open)} sub="Waiting for a decision" foot={`${summary.counts.dismissed} dismissed`} icon={<Lightbulb aria-hidden />} />
         <StatTile label="Planned" value={String(summary.counts.planned)} sub="Someone will act on these" foot="Still counted in the range" icon={<ListChecks aria-hidden />} />
-        <StatTile label="Estimated range" value={summary.highUsd ? `${usd(summary.lowUsd)}–${usd(summary.highUsd)}` : "$0"} sub="A month, open and planned" foot="Sample estimates, not promised savings" />
+        <StatTile label="Estimated range" value={summary.highUsd ? `${usd(summary.lowUsd)}–${usd(summary.highUsd)}` : "$0"} sub="A month, open and planned" foot="Observed cost, not promised savings" />
         <StatTile label="Done" value={String(summary.counts.done)} sub="Check later usage to confirm the effect" foot="Compare the weeks before and after" icon={<Check aria-hidden />} />
       </section>
 
@@ -102,7 +103,7 @@ export default function Recommendations() {
       )}
 
       <p className="text-xs leading-5 text-ink-muted">
-        Ranges are sample hypotheses. A live product would calculate them from your run and usage history, and the only proof of a saving is lower usage in the weeks after the change.
+        A range is the cost a rule observed, scaled to a month, not a promise. Where idle time is not known, no amount is shown. The only proof of a saving is lower usage in the weeks after the change.
       </p>
 
       <Drawer open={detail !== null} onOpenChange={(open) => !open && setOpenId(null)} title={detail?.title ?? ""} description={detail ? `${detail.category} · ${detail.jobName}` : undefined}>
@@ -120,9 +121,9 @@ export default function Recommendations() {
                 ))}
               </ul>
             </div>
-            <CodeBlock label="Sketch of the check" copyLabel="Copy" copiedMessage="Query copied" code={detail.method.query} />
+            <CodeBlock label="The same check in Databricks SQL (not run here)" copyLabel="Copy" copiedMessage="Query copied" code={detail.method.query} />
             <div>
-              <h3 className="mb-1.5 text-xs font-bold tracking-wide text-ink-muted uppercase">Sample of what came back</h3>
+              <h3 className="mb-1.5 text-xs font-bold tracking-wide text-ink-muted uppercase">What the cache shows</h3>
               <DataTable
                 caption="Sample rows"
                 className="[&_table]:min-w-0"

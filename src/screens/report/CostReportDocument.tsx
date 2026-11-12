@@ -104,6 +104,7 @@ export function CostReportDocument({ report }: { report: CostReport }) {
           <strong>{report.organization}</strong> used an estimated {money(report.estimatedListCost)} at list price in {report.period}, across {report.workspaces} workspaces
           and {count(report.records)} usage records.
           {compared ? ` That is ${change >= 0 ? "up" : "down"} ${Math.abs(change).toFixed(1)}% on ${report.comparison}.` : ""}
+          {report.discount.percent > 0 ? ` After the ${report.discount.percent}% negotiated discount entered in settings, that is about ${money(report.discount.netCost)}.` : ""}
           {showBudget ? ` The current month is on course for ${money(report.budget.projection)}, which is ${budgetPercent.toFixed(0)}% of the budget.` : ""}
           {report.recommendations.length ? ` ${report.recommendations.length} findings are open or planned.` : ""}
         </p>
@@ -175,7 +176,7 @@ export function CostReportDocument({ report }: { report: CostReport }) {
       ) : null}
 
       {has("recommendations") ? (
-        <Section number={next()} title="Recommendations to review" lead="Each item has a signal and a next step. Ranges are sample hypotheses, not measured or promised savings.">
+        <Section number={next()} title="Recommendations to review" lead="Computed from the last 30 days. Each item has a signal and a next step. A range is observed cost scaled to a month, not a promised saving.">
           {report.recommendations.length ? (
             <div className="space-y-4">
               {report.recommendations.map((r, i) => (

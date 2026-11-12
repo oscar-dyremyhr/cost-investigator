@@ -50,15 +50,15 @@ export const smallerJobs = [
 
 /** SQL warehouses, with each one's share of Databricks SQL spend. adhoc-analytics-wh carries no tag. */
 export const sqlWarehouses = [
-  { warehouseId: "4b9c1f2e7a6d3c58", name: "bi-reporting-wh", workspaceId: "984201764512", serverless: false, ownedBy: "analytics@northstar.example", team: "analytics", share: 0.55 },
-  { warehouseId: "a71e0d5c93b248f6", name: "adhoc-analytics-wh", workspaceId: "229408156773", serverless: true, ownedBy: "j.okafor@northstar.example", team: "", share: 0.27 },
-  { warehouseId: "0c5d8e21f47a9b36", name: "finance-wh", workspaceId: "729104832610", serverless: false, ownedBy: "finance-data@northstar.example", team: "finance-data", share: 0.18 },
+  { warehouseId: "4b9c1f2e7a6d3c58", name: "bi-reporting-wh", workspaceId: "984201764512", serverless: false, ownedBy: "analytics@northstar.example", team: "analytics", size: "Medium", autoStopMinutes: 120, share: 0.55 },
+  { warehouseId: "a71e0d5c93b248f6", name: "adhoc-analytics-wh", workspaceId: "229408156773", serverless: true, ownedBy: "j.okafor@northstar.example", team: "", size: "Small", autoStopMinutes: 10, share: 0.27 },
+  { warehouseId: "0c5d8e21f47a9b36", name: "finance-wh", workspaceId: "729104832610", serverless: false, ownedBy: "finance-data@northstar.example", team: "finance-data", size: "Small", autoStopMinutes: 20, share: 0.18 },
 ];
 
 /** All-purpose clusters. shared-exploration carries no tag. */
 export const allPurposeClusters = [
-  { clusterId: "1107-204455-xk3p9q2a", name: "shared-exploration", workspaceId: "229408156773", runAs: "forecasting@northstar.example", team: "", share: 0.6 },
-  { clusterId: "0922-081530-m4t7w1zc", name: "ml-dev", workspaceId: "550913427708", runAs: "ml-platform@northstar.example", team: "ml-platform", share: 0.4 },
+  { clusterId: "1107-204455-xk3p9q2a", name: "shared-exploration", workspaceId: "229408156773", runAs: "forecasting@northstar.example", team: "", autoTerminationMinutes: 0, share: 0.6 },
+  { clusterId: "0922-081530-m4t7w1zc", name: "ml-dev", workspaceId: "550913427708", runAs: "ml-platform@northstar.example", team: "ml-platform", autoTerminationMinutes: 60, share: 0.4 },
 ];
 
 /** Lakeflow pipelines. */

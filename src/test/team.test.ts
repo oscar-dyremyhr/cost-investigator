@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { invite, nameFromEmail, owner, remove } from "@/lib/team";
-import { resetDemo, useAlertRules, useRecommendations, useTeam } from "@/store/app";
+import { resetDemo, useAlertRules, useDiscounts, useRecommendations, useTeam } from "@/store/app";
 
 describe("team", () => {
   it("adds a teammate with a readable name", () => {
@@ -34,7 +34,9 @@ describe("reset demo", () => {
     useRecommendations.setState({ statuses: { a: "done" } });
     useAlertRules.setState({ overrides: { b: { enabled: false } } });
     useTeam.setState({ invited: [{ id: "m", name: "M", email: "m@x.example", role: "viewer" }] });
+    useDiscounts.setState({ discounts: { overallPercent: 12, byProduct: {} } });
     resetDemo();
+    expect(useDiscounts.getState().discounts).toEqual({ overallPercent: 0, byProduct: {} });
     expect([...store.keys()].sort()).toEqual(["cost-investigator-theme", "someone-elses-key"]);
     expect(useRecommendations.getState().statuses).toEqual({});
     expect(useAlertRules.getState().overrides).toEqual({});

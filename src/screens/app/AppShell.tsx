@@ -3,7 +3,7 @@
 import { Suspense, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BellRing, Bot, BriefcaseBusiness, Cloud, FileText, Gauge, LayoutDashboard, Layers3, Lightbulb, Settings, Tags, Zap } from "lucide-react";
+import { BellRing, Bot, BriefcaseBusiness, Cloud, FileText, Gauge, Hash, LayoutDashboard, Layers3, Lightbulb, Server, Settings, Tags, Zap } from "lucide-react";
 import { ButtonLink, Logo, LogoMark, ThemeToggle } from "@/design-system/components";
 import { useAlerts, useRecommendationSummary } from "@/lib/use-app-state";
 import { cn } from "@/lib/utils";
@@ -17,6 +17,8 @@ const groups = [
       { href: "/jobs", label: "Jobs", icon: BriefcaseBusiness },
       { href: "/serverless", label: "Serverless", icon: Zap },
       { href: "/model-serving", label: "Model serving", icon: Bot },
+      { href: "/compute", label: "Compute", icon: Server },
+      { href: "/tags", label: "Tags", icon: Hash },
       { href: "/prices", label: "List prices", icon: Tags },
     ],
   },
@@ -55,7 +57,7 @@ function Nav({ counts }: { counts: { recommendations: number; alerts: number } }
         </div>
         <nav aria-label="Main navigation" className="flex-1 overflow-y-auto px-3 py-4">
           {groups.map((group) => (
-            <div key={group.label} className="mb-4">
+            <div key={group.label} className="mb-3">
               <p className="mb-1 px-3 text-[11px] font-bold tracking-[0.14em] text-ink-muted uppercase">{group.label}</p>
               <ul className="space-y-0.5">
                 {group.items.map((item) => {
@@ -67,7 +69,7 @@ function Nav({ counts }: { counts: { recommendations: number; alerts: number } }
                         href={item.href}
                         aria-current={active ? "page" : undefined}
                         className={cn(
-                          "flex h-10 items-center gap-3 rounded-xl px-3 text-sm font-medium",
+                          "flex h-9 items-center gap-3 rounded-xl px-3 text-sm font-medium",
                           active ? "bg-brand-soft text-ink" : "text-ink-muted hover:bg-ink/6 hover:text-ink",
                         )}
                       >

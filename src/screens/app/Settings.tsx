@@ -3,14 +3,17 @@
 import { useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { RefreshCw, RotateCcw, Save, Trash2, UserPlus } from "lucide-react";
+import { Percent, RefreshCw, RotateCcw, Save, Trash2, UserPlus } from "lucide-react";
 import { Badge, Button, Card, DataTable, Field, Input, Modal, Select, Term, toast } from "@/design-system/components";
 import { initialOnboardingSetup, onboardingWorkspaces } from "@/content/copy";
 import { pricing } from "@/content/pricing";
+import { usd } from "@/lib/format";
+import { applyDiscounts, cleanDiscounts, hasDiscounts, type Discounts } from "@/lib/pricing";
 import { invite, owner, remove, roleLabels, roleNotes, type Member, type Role } from "@/lib/team";
+import { useNegotiatedPrices, useUsage } from "@/lib/use-app-state";
 import { useHydrated } from "@/lib/use-hydrated";
 import { recordTypes } from "@/mocks/service";
-import { resetDemo, useTeam } from "@/store/app";
+import { resetDemo, useDiscounts, useTeam } from "@/store/app";
 import { Page, PageHeader, SampleBadge } from "./parts";
 
 const SERVICE_PRINCIPAL = "cost-investigator-reader";
@@ -59,9 +62,76 @@ function Organization({ onSaved }: { onSaved: () => void }) {
   );
 }
 
+const percentText = (n: number | undefined) => (n === undefined ? "" : String(n));
+const parsePercent = (text: string) => (text.trim() === "" ? undefined : Number(text));
+const badPercent = (text: string) => text.trim() !== "" && !(Number(text) >= 0 && Number(text) <= 100);
+
+/** Rendered once the saved discounts are known, so the form can start from them. */
+function NegotiatedPrices({ saved }: { saved: Discounts }) {
+  const { usage, label } = useUsage();
+  const [overall, setOverall] = useState(saved.overallPercent ? String(saved.overallPercent) : "");
+  const [byProduct, setByProduct] = useState<Record<string, string>>(Object.fromEntries(Object.entries(saved.byProduct).map(([k, v]) => [k, percentText(v)])));
+  const invalid = badPercent(overall) || Object.values(byProduct).some(badPercent);
+  const draft = cleanDiscounts({
+    overallPercent: parsePercent(overall) ?? 0,
+    byProduct: Object.fromEntries(Object.entries(byProduct).flatMap(([k, v]) => (parsePercent(v) === undefined ? [] : [[k, parsePercent(v)]]))),
+  });
+  const net = applyDiscounts(usage.products, draft);
+  const changed = JSON.stringify(draft) !== JSON.stringify(saved);
+
+  const save = (e: FormEvent) => {
+    e.preventDefault();
+    if (invalid) return;
+    useDiscounts.setState({ discounts: draft });
+    toast(hasDiscounts(draft) ? { title: "Prices saved", description: `Figures now also show cost after a ${net.blendedPercent.toFixed(0)}% blended discount.` } : { title: "Discounts removed", description: "Figures show list price only." });
+  };
+
+  return (
+    <form onSubmit={save} noValidate className="mt-4" data-testid="negotiated-prices">
+      <div className="grid gap-5 lg:grid-cols-[1fr_1.4fr]">
+        <div>
+          <Field label="Discount on everything (%)" htmlFor="discount-overall" hint="Used for any product without its own figure." error={badPercent(overall) ? "Enter a number from 0 to 100." : undefined}>
+            <Input id="discount-overall" inputMode="decimal" placeholder="0" value={overall} aria-invalid={badPercent(overall) || undefined} onChange={(e) => setOverall(e.target.value)} className="font-mono" />
+          </Field>
+          <div className="mt-5 rounded-2xl bg-paper-deep p-4 text-sm">
+            <p className="text-xs font-semibold tracking-wide text-ink-muted uppercase">With these figures · {label}</p>
+            <dl className="mt-2 space-y-1">
+              <div className="flex justify-between gap-3"><dt className="text-ink-muted">List price</dt><dd className="tabular font-mono">{usd(net.listUsd)}</dd></div>
+              <div className="flex justify-between gap-3"><dt className="text-ink-muted">After discount</dt><dd className="tabular font-mono font-semibold" data-testid="net-preview">{usd(net.netUsd)}</dd></div>
+              <div className="flex justify-between gap-3"><dt className="text-ink-muted">Blended discount</dt><dd className="tabular font-mono">{net.blendedPercent.toFixed(1)}%</dd></div>
+            </dl>
+          </div>
+        </div>
+        <fieldset>
+          <legend className="text-sm font-medium">Or per product (%)</legend>
+          <p className="mt-0.5 text-sm text-ink-muted">Leave blank to use the discount on everything.</p>
+          <ul className="mt-3 grid gap-x-4 gap-y-3 sm:grid-cols-2">
+            {usage.products.map((p) => (
+              <li key={p.product} className="flex items-center justify-between gap-3">
+                <label htmlFor={`discount-${p.product}`} className="min-w-0 text-sm">
+                  <span className="block truncate font-medium">{p.label}</span>
+                  <span className="block font-mono text-[11px] text-ink-muted">{p.product}</span>
+                </label>
+                <Input id={`discount-${p.product}`} inputMode="decimal" placeholder={overall.trim() || "0"} value={byProduct[p.product] ?? ""} aria-invalid={badPercent(byProduct[p.product] ?? "") || undefined} onChange={(e) => setByProduct((current) => ({ ...current, [p.product]: e.target.value }))} className="h-10 w-24 font-mono" />
+              </li>
+            ))}
+          </ul>
+        </fieldset>
+      </div>
+      <div className="mt-5 flex flex-wrap items-center gap-3">
+        <Button type="submit" variant="secondary" icon={<Save aria-hidden />} disabled={invalid || !changed} data-testid="save-prices">
+          Save prices
+        </Button>
+        <p className="text-xs text-ink-muted">List price stays the main figure everywhere. The discounted figure is shown beside it on the Overview, Billing breakdown and in new reports.</p>
+      </div>
+    </form>
+  );
+}
+
 export default function Settings() {
   const router = useRouter();
   const hydrated = useHydrated();
+  const discounts = useNegotiatedPrices();
   const stored = useTeam((s) => s.invited);
   const members = useMemo<Member[]>(() => [owner, ...(hydrated ? stored : [])], [hydrated, stored]);
   const [version, setVersion] = useState(0);
@@ -154,6 +224,12 @@ export default function Settings() {
       </Card>
 
       <Card>
+        <h2 className="flex items-center gap-2 text-lg font-bold"><Percent className="size-[18px] text-brand" aria-hidden />Your negotiated prices</h2>
+        <p className="mt-1 max-w-2xl text-sm text-ink-muted">Databricks only reports list price. Enter the discount in your contract to also see figures closer to your invoice. Credits and taxes are still not included.</p>
+        {hydrated ? <NegotiatedPrices key={JSON.stringify(discounts)} saved={discounts} /> : <div className="mt-4 h-48" aria-hidden />}
+      </Card>
+
+      <Card>
         <h2 className="text-lg font-bold">Databricks connection</h2>
         <p className="mt-1 text-sm text-ink-muted">
           Cost Investigator has read-only access to the billing <Term k="systemTables">system tables</Term>. Your business data stays in your <Term k="workspace">workspace</Term>.
@@ -192,7 +268,7 @@ export default function Settings() {
       <Card className="flex flex-wrap items-center justify-between gap-4 border-dashed border-line-strong">
         <div className="max-w-xl">
           <h2 className="text-lg font-bold">Reset demo</h2>
-          <p className="mt-1 text-sm text-ink-muted">Go back to a fresh start: no reports, no teammates, the sample budget and every recommendation open again. You’ll walk through setup again.</p>
+          <p className="mt-1 text-sm text-ink-muted">Go back to a fresh start: no reports, no teammates, no discounts, the sample budget and every recommendation open again. You’ll walk through setup again.</p>
         </div>
         <Button variant="secondary" icon={<RotateCcw aria-hidden />} onClick={() => setConfirmReset(true)} data-testid="reset-demo">
           Reset demo

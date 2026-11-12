@@ -6,8 +6,9 @@ import { BudgetGauge, ButtonLink, StatTile, StatusPill, Term } from "@/design-sy
 import { change, num, pct, usd } from "@/lib/format";
 import { sortRecommendations, statusOf } from "@/lib/recommendations";
 import { serverlessSpend } from "@/lib/serverless";
-import { useAlerts, useBudget, useRecommendationStatuses, useRecommendationSummary, useUsage } from "@/lib/use-app-state";
-import { recordTypes, savingsRecommendations } from "@/mocks/service";
+import { useAlerts, useBudget, useNegotiatedPrices, useRecommendationList, useRecommendationStatuses, useRecommendationSummary, useUsage } from "@/lib/use-app-state";
+import { applyDiscounts, hasDiscounts } from "@/lib/pricing";
+import { recordTypes } from "@/mocks/service";
 import { BarList, DailyBars, Page, PageHeader, SectionCard, SourceNote } from "./parts";
 import { RangePicker } from "./RangePicker";
 
@@ -18,6 +19,9 @@ export default function Dashboard() {
   const { budget, projection, projectedPercent, daysElapsed, daysInMonth } = useBudget();
   const daily = usage.daily.map((d) => ({ label: d.label, value: d.listCostUsd }));
   const alerts = useAlerts();
+  const savingsRecommendations = useRecommendationList();
+  const discounts = useNegotiatedPrices();
+  const net = applyDiscounts(usage.products, discounts);
   const statuses = useRecommendationStatuses();
   const recs = useRecommendationSummary();
   const firing = alerts.filter((a) => a.rule.enabled && a.result.triggered);
@@ -47,7 +51,7 @@ export default function Dashboard() {
           value={usd(usage.totalUsd)}
           delta={delta}
           sub={delta === undefined ? "No earlier data cached to compare with" : `vs ${previousLabel}`}
-          foot={`${num(usage.dbus)} DBUs · ${usage.workspaceCount} workspaces`}
+          foot={hasDiscounts(discounts) ? `About ${usd(net.netUsd)} after your ${net.blendedPercent.toFixed(0)}% discount` : `${num(usage.dbus)} DBUs · ${usage.workspaceCount} workspaces`}
           icon={<CircleDollarSign aria-hidden />}
         />
         <StatTile
@@ -61,7 +65,7 @@ export default function Dashboard() {
           label="Open recommendations"
           value={String(recs.counts.open)}
           sub={recs.highUsd > 0 ? `${usd(recs.lowUsd)}–${usd(recs.highUsd)} a month to review` : "Nothing quantified is open"}
-          foot="Sample estimates, not promised savings"
+          foot="Observed cost, not promised savings"
           icon={<Lightbulb aria-hidden />}
         />
         <StatTile

@@ -82,15 +82,33 @@ export type JobRunRow = {
   list_cost: number;
 };
 
+/**
+ * The name and settings of a SQL warehouse, cluster or pipeline. Billing only
+ * carries IDs; these come from system.compute.warehouses, system.compute.clusters
+ * and system.lakeflow.pipelines (latest row per resource).
+ */
+export type ResourceRow = {
+  workspace_id: string;
+  resource_type: "warehouse" | "cluster" | "pipeline";
+  resource_id: string;
+  name: string;
+  owned_by: string | null;
+  /** Warehouse size, for example "Medium". */
+  size: string | null;
+  /** auto_stop_minutes for a warehouse, auto_termination_minutes for a cluster. 0 means it never stops by itself. */
+  auto_stop_minutes: number | null;
+};
+
 export type DateRange = { from: string; to: string };
 
-/** The five questions the app asks of a Databricks account. */
+/** The six questions the app asks of a Databricks account. */
 export interface CostDataSource {
   usageDaily(range: DateRange): Promise<UsageRow[]>;
   listPrices(): Promise<ListPriceRow[]>;
   jobs(): Promise<JobRow[]>;
   jobHealthDaily(range: DateRange): Promise<JobHealthRow[]>;
   topJobRuns(range: DateRange): Promise<JobRunRow[]>;
+  resources(): Promise<ResourceRow[]>;
 }
 
 /** What the app keeps between refreshes. Every page and report is answered from this. */
@@ -103,16 +121,18 @@ export type CostCache = {
   jobs: JobRow[];
   jobHealth: JobHealthRow[];
   jobRuns: JobRunRow[];
+  resources: ResourceRow[];
 };
 
 /** Fills a cache from any data source. Run it on a schedule; usage arrives within about 12 hours. */
 export async function loadCache(source: CostDataSource, range: DateRange, refreshedAt: string): Promise<CostCache> {
-  const [usage, listPrices, jobs, jobHealth, jobRuns] = await Promise.all([
+  const [usage, listPrices, jobs, jobHealth, jobRuns, resources] = await Promise.all([
     source.usageDaily(range),
     source.listPrices(),
     source.jobs(),
     source.jobHealthDaily(range),
     source.topJobRuns(range),
+    source.resources(),
   ]);
-  return { ...range, refreshedAt, usage, listPrices, jobs, jobHealth, jobRuns };
+  return { ...range, refreshedAt, usage, listPrices, jobs, jobHealth, jobRuns, resources };
 }

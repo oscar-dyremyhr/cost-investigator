@@ -1,4 +1,4 @@
-import type { Recommendation } from "@/mocks/service";
+import type { Recommendation } from "@/lib/recommend";
 
 export type RecommendationStatus = "open" | "planned" | "done" | "dismissed";
 export const recommendationStatuses: RecommendationStatus[] = ["open", "planned", "done", "dismissed"];

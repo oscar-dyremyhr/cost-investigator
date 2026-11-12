@@ -96,7 +96,9 @@ const jobWeight: Record<string, (i: number) => number> = {
   "610482957331": (i) => 1 - 0.15 * ((i - FIRST) / (ANCHOR_DAYS - 1 - FIRST)),
 };
 
-const tag = (key: string, value: string): Record<string, string> => (value ? { [key]: value } : {});
+/** A tagged workload also carries an env tag: dev in the Sandbox workspace, prod elsewhere. Untagged ones carry nothing. */
+const SANDBOX = "550913427708";
+const tag = (key: string, value: string, workspaceId: string): Record<string, string> => (value ? { [key]: value, env: workspaceId === SANDBOX ? "dev" : "prod" } : {});
 
 function build(): Pick<CostCache, "usage" | "jobHealth"> {
   const total = totals();
@@ -156,7 +158,7 @@ function build(): Pick<CostCache, "usage" | "jobHealth"> {
       row(cost, j.serverless ? SKU.jobsServerless : SKU.jobs, "JOBS", j.workspaceId, {
         job_id: j.jobId,
         run_as: j.runAs,
-        custom_tags: tag("team", j.team),
+        custom_tags: tag("team", j.team, j.workspaceId),
         is_serverless: j.serverless,
         performance_target: j.performanceTarget || null,
       });
@@ -187,22 +189,22 @@ function build(): Pick<CostCache, "usage" | "jobHealth"> {
     }
 
     for (const w of sqlWarehouses) {
-      row(product(i, "SQL") * w.share, w.serverless ? SKU.sqlServerless : SKU.sqlPro, "SQL", w.workspaceId, { warehouse_id: w.warehouseId, run_as: w.ownedBy, custom_tags: tag("team", w.team), is_serverless: w.serverless });
+      row(product(i, "SQL") * w.share, w.serverless ? SKU.sqlServerless : SKU.sqlPro, "SQL", w.workspaceId, { warehouse_id: w.warehouseId, run_as: w.ownedBy, custom_tags: tag("team", w.team, w.workspaceId), is_serverless: w.serverless });
     }
     for (const p of pipelines) {
-      row(product(i, "DLT") * p.share, SKU.dlt, "DLT", p.workspaceId, { dlt_pipeline_id: p.pipelineId, run_as: p.runAs, custom_tags: tag("team", p.team), is_serverless: false });
+      row(product(i, "DLT") * p.share, SKU.dlt, "DLT", p.workspaceId, { dlt_pipeline_id: p.pipelineId, run_as: p.runAs, custom_tags: tag("team", p.team, p.workspaceId), is_serverless: false });
     }
     for (const c of allPurposeClusters) {
-      row(product(i, "ALL_PURPOSE") * c.share, SKU.allPurpose, "ALL_PURPOSE", c.workspaceId, { cluster_id: c.clusterId, run_as: c.runAs, custom_tags: tag("team", c.team), is_serverless: false });
+      row(product(i, "ALL_PURPOSE") * c.share, SKU.allPurpose, "ALL_PURPOSE", c.workspaceId, { cluster_id: c.clusterId, run_as: c.runAs, custom_tags: tag("team", c.team, c.workspaceId), is_serverless: false });
     }
     for (const e of servingEndpoints) {
       const cost = endpointUsd[e.endpointName](i);
-      const features = { endpoint_name: e.endpointName, custom_tags: tag("business_unit", e.businessUnit), serving_type: e.servingType, offering_type: e.batch ? "BATCH_INFERENCE" : null };
+      const features = { endpoint_name: e.endpointName, custom_tags: tag("business_unit", e.businessUnit, e.workspaceId), serving_type: e.servingType, offering_type: e.batch ? "BATCH_INFERENCE" : null };
       row(cost * (1 - e.launchShare), SKU.serving, "MODEL_SERVING", e.workspaceId, features);
       row(cost * e.launchShare, SKU.servingLaunch, "MODEL_SERVING", e.workspaceId, features);
     }
     for (const n of serverlessNotebooks) {
-      row(notebookUsd[n.notebookId](i), SKU.notebooks, "INTERACTIVE", n.workspaceId, { notebook_id: n.notebookId, notebook_path: n.notebookPath, run_as: n.runAs, custom_tags: tag("team", n.team), is_serverless: true });
+      row(notebookUsd[n.notebookId](i), SKU.notebooks, "INTERACTIVE", n.workspaceId, { notebook_id: n.notebookId, notebook_path: n.notebookPath, run_as: n.runAs, custom_tags: tag("team", n.team, n.workspaceId), is_serverless: true });
     }
 
     // Spread the day's record count over its rows.
@@ -227,6 +229,11 @@ export const sampleCache: CostCache = {
   jobHealth: built.jobHealth,
   listPrices: priceRows,
   jobs: [...topJobs, ...smallerJobs].map((j) => ({ workspace_id: j.workspaceId, job_id: j.jobId, name: j.jobName })),
+  resources: [
+    ...sqlWarehouses.map((w) => ({ workspace_id: w.workspaceId, resource_type: "warehouse" as const, resource_id: w.warehouseId, name: w.name, owned_by: w.ownedBy, size: w.size, auto_stop_minutes: w.autoStopMinutes })),
+    ...allPurposeClusters.map((c) => ({ workspace_id: c.workspaceId, resource_type: "cluster" as const, resource_id: c.clusterId, name: c.name, owned_by: c.runAs, size: null, auto_stop_minutes: c.autoTerminationMinutes })),
+    ...pipelines.map((p) => ({ workspace_id: p.workspaceId, resource_type: "pipeline" as const, resource_id: p.pipelineId, name: p.name, owned_by: p.runAs, size: null, auto_stop_minutes: null })),
+  ],
   jobRuns: topJobRuns.map((r) => ({ usage_date: r.date, workspace_id: r.workspaceId, job_id: r.jobId, run_id: r.runId, period_start_time: r.started, run_minutes: r.minutes, result_state: r.resultState, list_cost: r.estimatedListCostUsd })),
 };
 
@@ -239,4 +246,5 @@ export const sampleDataSource: CostDataSource = {
   jobs: async () => sampleCache.jobs,
   jobHealthDaily: async (range) => sampleCache.jobHealth.filter(within(range)),
   topJobRuns: async (range) => sampleCache.jobRuns.filter(within(range)),
+  resources: async () => sampleCache.resources,
 };

@@ -42,6 +42,18 @@ export function totalFor(range: DateRange, cache: CostCache = sampleCache): numb
   return cents(cost(cache.usage.filter(inRange(range))));
 }
 
+/** Which workload a usage row belongs to, with the best name the cache has for it. */
+function workloadOf(r: UsageRow, cache: CostCache): { kind: string; id: string; name: string } {
+  const named = (type: "warehouse" | "cluster" | "pipeline", id: string) => cache.resources.find((x) => x.resource_type === type && x.resource_id === id)?.name ?? id;
+  if (r.job_id) return { kind: "Job", id: r.job_id, name: cache.jobs.find((j) => j.job_id === r.job_id)?.name ?? `Job ${r.job_id}` };
+  if (r.warehouse_id) return { kind: "SQL warehouse", id: r.warehouse_id, name: named("warehouse", r.warehouse_id) };
+  if (r.cluster_id) return { kind: "Cluster", id: r.cluster_id, name: named("cluster", r.cluster_id) };
+  if (r.dlt_pipeline_id) return { kind: "Pipeline", id: r.dlt_pipeline_id, name: named("pipeline", r.dlt_pipeline_id) };
+  if (r.endpoint_name) return { kind: "Serving endpoint", id: r.endpoint_name, name: r.endpoint_name };
+  if (r.notebook_id) return { kind: "Notebook", id: r.notebook_id, name: r.notebook_path ?? r.notebook_id };
+  return { kind: "Other", id: r.sku_name, name: r.sku_name };
+}
+
 export function queryUsage(requested: DateRange, cache: CostCache = sampleCache) {
   const range = { from: requested.from < cache.from ? cache.from : requested.from, to: requested.to > cache.to ? cache.to : requested.to };
   const rows = cache.usage.filter(inRange(range));
@@ -160,6 +172,47 @@ export function queryUsage(requested: DateRange, cache: CostCache = sampleCache)
     .map(([key, group]) => ({ product: key.split("|")[0], target: key.split("|")[1], dbus: Math.round(quantity(group)) }))
     .sort((a, b) => b.dbus - a.dbus);
 
+  /* ---------- SQL warehouses, clusters and pipelines ---------- */
+  const compute = (product: string, type: "warehouse" | "cluster" | "pipeline", idOf: (r: UsageRow) => string | null) => {
+    const ofProduct = rows.filter((r) => r.billing_origin_product === product);
+    const productUsd = cost(ofProduct);
+    return [...groupBy(ofProduct, idOf)]
+      .map(([id, group]) => {
+        const resource = cache.resources.find((x) => x.resource_type === type && x.resource_id === id);
+        const newest = group[group.length - 1];
+        return {
+          id,
+          name: resource?.name ?? id,
+          workspaceId: newest.workspace_id,
+          owner: resource?.owned_by ?? newest.run_as ?? "Unknown",
+          tags: newest.custom_tags,
+          serverless: newest.is_serverless === true,
+          size: resource?.size ?? null,
+          autoStopMinutes: resource?.auto_stop_minutes ?? null,
+          dbus: Math.round(quantity(group)),
+          estimatedListCostUsd: cents(cost(group)),
+          sharePercent: productUsd ? (cost(group) / productUsd) * 100 : 0,
+        };
+      })
+      .sort((a, b) => b.estimatedListCostUsd - a.estimatedListCostUsd);
+  };
+
+  /* ---------- Tags ---------- */
+  const tagKeys = [...new Set(rows.flatMap((r) => Object.keys(r.custom_tags)))].sort();
+  const tags = tagKeys.map((key) => {
+    const withKey = rows.filter((r) => key in r.custom_tags);
+    const values = [...groupBy(withKey, (r) => r.custom_tags[key])]
+      .map(([value, group]) => ({ value, usd: cents(cost(group)), workloads: new Set(group.map((r) => `${workloadOf(r, cache).kind}:${workloadOf(r, cache).id}`)).size, sharePercent: totalUsd ? (cost(group) / totalUsd) * 100 : 0 }))
+      .sort((a, b) => b.usd - a.usd);
+    const coveredUsd = cents(cost(withKey));
+    return { key, values, coveredUsd, missingUsd: cents(totalUsd - coveredUsd), coveredPercent: totalUsd ? (coveredUsd / totalUsd) * 100 : 0 };
+  });
+  /** Workloads that lack a given tag key (or any tag at all when no key is given), largest first. */
+  const missingTag = (key?: string) =>
+    [...groupBy(rows.filter((r) => (key ? !(key in r.custom_tags) : !isTagged(r))), (r) => `${workloadOf(r, cache).kind}:${workloadOf(r, cache).id}`)]
+      .map(([, group]) => ({ ...workloadOf(group[0], cache), workspaceId: group[0].workspace_id, owner: group[group.length - 1].run_as ?? "Unknown", product: group[0].billing_origin_product, usd: cents(cost(group)) }))
+      .sort((a, b) => b.usd - a.usd);
+
   return {
     range,
     days: dates.length,
@@ -182,6 +235,12 @@ export function queryUsage(requested: DateRange, cache: CostCache = sampleCache)
     endpoints,
     servingDaily: dates.map((date) => ({ label: label(date), value: Math.round(quantity(servingByDate.get(date) ?? [])) })),
     performanceTargets,
+    warehouses: compute("SQL", "warehouse", (r) => r.warehouse_id),
+    clusters: compute("ALL_PURPOSE", "cluster", (r) => r.cluster_id),
+    pipelines: compute("DLT", "pipeline", (r) => r.dlt_pipeline_id),
+    tags,
+    untaggedWorkloads: missingTag(),
+    missingTag,
   };
 }
 export type Usage = ReturnType<typeof queryUsage>;

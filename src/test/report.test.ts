@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { computeRecommendations } from "@/lib/recommend";
+import { queryUsage } from "@/mocks/service";
 import { createCostReport, decodeReport, encodeReport, normalizeReport, reportFileName, reportToCsv, reportToSummary, shareUrl, type ReportContext } from "@/lib/cost-report";
 
+const recommendations = computeRecommendations(queryUsage({ from: "2026-10-13", to: "2026-11-11" }));
 const context: ReportContext = {
-  statuses: { "untagged-usage": "dismissed", "warehouse-auto-stop": "planned" },
+  recommendations,
+  statuses: { "untagged-spend": "dismissed", "long-auto-stop:4b9c1f2e7a6d3c58": "planned" },
   alerts: [{ name: "Daily spend spike", detail: "Latest day is 37% above the 7-day average" }],
   budget: { amount: 150000, alertAt: 90, projection: 142200 },
 };
@@ -13,8 +17,9 @@ describe("creating a report", () => {
   it("freezes the chosen sections in document order and only active recommendations", () => {
     const report = make();
     expect(report.sections).toEqual(["products", "budget", "recommendations"]);
-    expect(report.recommendations.map((r) => r.id)).not.toContain("untagged-usage");
-    expect(report.recommendations.find((r) => r.id === "warehouse-auto-stop")?.status).toBe("planned");
+    expect(report.recommendations.map((r) => r.id)).not.toContain("untagged-spend");
+    expect(report.recommendations).toHaveLength(recommendations.length - 1);
+    expect(report.recommendations.find((r) => r.id === "long-auto-stop:4b9c1f2e7a6d3c58")?.status).toBe("planned");
     expect(report.products.reduce((s, p) => s + p.estimatedListCostUsd, 0)).toBe(report.estimatedListCost);
   });
   it("covers the dates it is asked for", () => {
@@ -80,8 +85,19 @@ describe("exports", () => {
     expect(text).toContain("Estimated list cost: $52,140 (+19.0% vs the same days last month).");
     expect(text).toContain("95% of the $150,000 budget");
     expect(make().period).toBe("Nov 1–11, 2026");
-    expect(text).toContain("- Check for overlapping gold refresh runs ($420–$680 a month)");
+    expect(text).toContain("- Fix the recurring failures in Customer 360 feature build ($689–$1,378 a month)");
+    expect(text).toContain("- Shorten auto-stop on bi-reporting-wh (not quantified)");
     expect(text).toContain("Note: For the Thursday meeting.");
+  });
+  it("show the cost after a negotiated discount when one is set", () => {
+    const base = { title: "T", organization: "O", audience: "finance" as const, sections: ["products" as const], note: "" };
+    expect(make().discount).toEqual({ percent: 0, netCost: 52140 });
+    expect(reportToSummary(make())).not.toContain("negotiated discount");
+    const discounted = createCostReport(base, { ...context, discounts: { overallPercent: 10, byProduct: { SQL: 20 } } });
+    // 10% off everything except SQL ($13,250) at 20%.
+    expect(discounted.discount.netCost).toBeCloseTo(52140 - 0.1 * (52140 - 13250) - 0.2 * 13250, 2);
+    expect(reportToSummary(discounted)).toContain(`After your ${discounted.discount.percent}% negotiated discount`);
+    expect(reportToCsv(discounted)).toContain("Summary,After negotiated discount,");
   });
   it("file names are safe", () => {
     expect(reportFileName(make(), "csv")).toBe("northstar-commerce-november-review-2026-11-12.csv");

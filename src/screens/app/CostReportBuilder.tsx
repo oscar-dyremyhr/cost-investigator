@@ -8,7 +8,7 @@ import { reportAudiences, reportSections, type ReportAudienceId, type ReportSect
 import { createCostReport, saveCostReport } from "@/lib/cost-report";
 import { describeRange, type RangeChoice } from "@/lib/range";
 import { usd } from "@/lib/format";
-import { useAlerts, useBudget, useRecommendationStatuses, useRecommendationSummary, useUsage } from "@/lib/use-app-state";
+import { useAlerts, useBudget, useNegotiatedPrices, useRecommendationList, useRecommendationStatuses, useRecommendationSummary, useUsage } from "@/lib/use-app-state";
 import { Page, PageHeader, SampleBadge, SectionCard } from "./parts";
 import { RangeFields } from "./RangePicker";
 
@@ -19,6 +19,8 @@ export default function CostReportBuilder() {
   const statuses = useRecommendationStatuses();
   const recommendations = useRecommendationSummary();
   const alerts = useAlerts();
+  const findings = useRecommendationList();
+  const discounts = useNegotiatedPrices();
   const { budget, projection } = useBudget();
   const [title, setTitle] = useState("Databricks Cost Review");
   const [organization, setOrganization] = useState("Northstar Commerce");
@@ -45,6 +47,8 @@ export default function CostReportBuilder() {
       { title, organization, audience, sections, note, range: rangeChoice },
       {
         statuses,
+        recommendations: findings,
+        discounts,
         budget: { ...budget, projection },
         alerts: firing.map(({ rule, result }) => ({ name: rule.name, detail: result.matches.length === 1 ? result.matches[0].label : `${result.matches.length} over the threshold` })),
       },

@@ -5,8 +5,8 @@ import Link from "next/link";
 import { ArrowRight, BriefcaseBusiness, CircleX, RotateCcw } from "lucide-react";
 import { Badge, DataTable, DeltaPill, Segmented, StatTile, StatusPill, Term } from "@/design-system/components";
 import { change, usd, usdExact } from "@/lib/format";
-import { useUsage } from "@/lib/use-app-state";
-import { savingsRecommendations, type Usage } from "@/mocks/service";
+import { useRecommendationList, useUsage } from "@/lib/use-app-state";
+import type { Usage } from "@/mocks/service";
 import { Page, PageHeader, SectionCard, SourceNote } from "./parts";
 import { RangePicker } from "./RangePicker";
 
@@ -32,6 +32,7 @@ const mono = (v: string | number) => <span className="tabular font-mono">{v}</sp
 export default function JobCosts() {
   const [view, setView] = useState<View>("jobs");
   const { usage } = useUsage();
+  const savingsRecommendations = useRecommendationList();
   const topJobs = usage.jobs;
   const topJobRuns = usage.jobRuns;
   const current = views.find((v) => v.value === view)!;
@@ -147,7 +148,7 @@ export default function JobCosts() {
                   <p className="text-sm font-semibold">{r.title}</p>
                   <p className="mt-0.5 text-xs text-ink-muted">{r.jobName} · {r.evidence}</p>
                 </div>
-                <span className="tabular font-mono text-xs font-bold whitespace-nowrap">{usd(r.opportunityLowUsd)}–{usd(r.opportunityHighUsd)}/mo</span>
+                <span className="tabular font-mono text-xs font-bold whitespace-nowrap">{r.opportunityHighUsd ? `${usd(r.opportunityLowUsd)}–${usd(r.opportunityHighUsd)}/mo` : "Not quantified"}</span>
               </li>
             ))}
           </ul>

@@ -129,3 +129,27 @@ FROM run_cost c
 LEFT JOIN run_times t USING (workspace_id, job_id, run_id)
 ORDER BY c.list_cost DESC
 LIMIT 50`;
+
+/**
+ * resources. Names and settings for the IDs that billing carries. Each table
+ * keeps history, so the latest row per resource is taken and deleted ones are
+ * dropped. These three tables were NOT checked against the Databricks
+ * documentation when this was written: confirm the column names first.
+ * Needs USE SCHEMA and SELECT on `system.compute` as well.
+ */
+export const resourcesSql = `
+SELECT workspace_id, 'warehouse' AS resource_type, warehouse_id AS resource_id, warehouse_name AS name,
+       CAST(NULL AS STRING) AS owned_by, warehouse_size AS size, auto_stop_minutes
+FROM system.compute.warehouses
+WHERE delete_time IS NULL
+QUALIFY ROW_NUMBER() OVER (PARTITION BY workspace_id, warehouse_id ORDER BY change_time DESC) = 1
+UNION ALL
+SELECT workspace_id, 'cluster', cluster_id, cluster_name, owned_by, CAST(NULL AS STRING), auto_termination_minutes
+FROM system.compute.clusters
+WHERE delete_time IS NULL
+QUALIFY ROW_NUMBER() OVER (PARTITION BY workspace_id, cluster_id ORDER BY change_time DESC) = 1
+UNION ALL
+SELECT workspace_id, 'pipeline', pipeline_id, name, CAST(NULL AS STRING), CAST(NULL AS STRING), CAST(NULL AS BIGINT)
+FROM system.lakeflow.pipelines
+WHERE delete_time IS NULL
+QUALIFY ROW_NUMBER() OVER (PARTITION BY workspace_id, pipeline_id ORDER BY change_time DESC) = 1`;
