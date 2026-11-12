@@ -26,7 +26,7 @@ Open http://localhost:3000. Everything runs on sample data for a fictional compa
 | `/budgets` | Monthly budget and run-rate projection | |
 | `/reports` | Generate a report (audience, sections, note), then share it by link, export PDF or CSV, copy a text summary, compare or delete | snapshot of all of the above |
 
-Marketing and setup pages: `/` (landing), `/pricing`, `/onboarding`, `/setup`, and `/styleguide` for the design system.
+Marketing and setup pages: `/` (landing), `/pricing`, `/onboarding` (a four-step wizard: account, connect, budget, first review), `/setup`, and `/styleguide` for the design system. The landing page and onboarding follow the Receipts (sp1) layout and are built from the design system; their words live in `src/content/landing.ts` and `src/content/onboarding.ts`.
 
 The app screens share one shell (`src/screens/app/AppShell.tsx`). Cost logic lives in `src/lib` (`alerts.ts`, `serverless.ts`, `budget.ts`, `recommendations.ts`) and is covered by `npm test`. Recommendation decisions and alert thresholds are saved in the browser.
 
