@@ -1,5 +1,157 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, BadgeCheck, BriefcaseBusiness, Database, Info, Lightbulb } from "lucide-react";
-import { savingsRecommendations, topJobs } from "@/mocks/service";
-const usd=(n:number)=>new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",minimumFractionDigits:2,maximumFractionDigits:2}).format(n);
-export default function JobCosts(){const total=topJobs.reduce((s,j)=>s+j.estimatedListCostUsd,0);return <main className="mx-auto min-h-screen max-w-6xl px-5 py-8 md:px-8"><Link href="/app" className="inline-flex items-center gap-2 text-sm font-semibold text-brand"><ArrowLeft size={16}/>Back to overview</Link><p className="mt-8 flex items-center gap-2 text-xs font-bold uppercase tracking-[.15em] text-brand"><BriefcaseBusiness size={14}/> Job cost analysis</p><h1 className="mt-2 font-heading text-4xl font-bold">Know which jobs drive spend</h1><p className="mt-3 max-w-3xl leading-7 text-ink-muted">Job-level estimates connect metered usage to job identity and run activity, so teams can find the workloads behind their biggest compute costs.</p><section className="mt-8 grid gap-4 sm:grid-cols-3"><article className="card p-5"><p className="text-sm text-ink-muted">Attributed list cost</p><p className="mono mt-3 text-3xl font-bold">{usd(total)}</p><p className="mt-2 text-xs text-ink-muted">For the sample period · USD</p></article><article className="card p-5"><p className="text-sm text-ink-muted">Jobs included</p><p className="mono mt-3 text-3xl font-bold">{topJobs.length}</p><p className="mt-2 text-xs text-ink-muted">Illustrative sample ranking</p></article><article className="card p-5"><p className="text-sm text-ink-muted">Attribution coverage</p><p className="mt-3 text-lg font-bold">Job compute + serverless</p><p className="mt-2 text-xs text-ink-muted">Partial view of total billing usage</p></article></section><section className="card mt-6 overflow-hidden"><div className="flex items-center justify-between gap-3 p-6"><div><h2 className="font-heading text-lg font-bold">Most expensive jobs</h2><p className="mt-1 text-sm text-ink-muted">Estimated list cost, run count and latest observed activity</p></div><Database className="text-ink-muted"/></div><div className="overflow-x-auto"><table className="w-full min-w-[850px] text-left text-sm"><thead className="bg-paper text-[11px] uppercase tracking-wide text-ink-muted"><tr><th className="px-6 py-3">Job</th><th className="px-4 py-3">Workspace</th><th className="px-4 py-3">Run as</th><th className="px-4 py-3 text-right">Runs</th><th className="px-4 py-3">Last seen</th><th className="px-6 py-3 text-right">Est. list cost</th></tr></thead><tbody>{topJobs.map(j=><tr key={j.jobId} className="border-t border-line"><td className="px-6 py-4"><p className="font-semibold">{j.jobName}</p><p className="mono mt-1 text-[10px] text-ink-muted">Job {j.jobId}</p></td><td className="mono px-4 py-4 text-xs">{j.workspaceId}</td><td className="px-4 py-4 text-xs">{j.runAs}</td><td className="mono px-4 py-4 text-right">{j.runs}</td><td className="px-4 py-4 text-xs text-ink-muted">{j.lastSeen}</td><td className="mono px-6 py-4 text-right font-semibold">{usd(j.estimatedListCostUsd)}</td></tr>)}</tbody><tfoot><tr className="border-t-2 border-line bg-paper"><td colSpan={5} className="px-6 py-4 font-bold">Attributed list cost in displayed jobs</td><td className="mono px-6 py-4 text-right font-bold">{usd(total)}</td></tr></tfoot></table></div></section><section id="recommendations" className="mt-8"><div className="flex flex-wrap items-end justify-between gap-3"><div><p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[.15em] text-brand"><Lightbulb size={14}/> Savings recommendations</p><h2 className="mt-2 font-heading text-2xl font-bold">Turn cost signals into next steps</h2><p className="mt-1 text-sm text-ink-muted">Ranked opportunities with evidence, an action and a reviewable estimate.</p></div><span className="rounded-full border border-line bg-surface px-3 py-1.5 text-xs text-ink-muted">Illustrative sample findings</span></div><div className="mt-4 grid gap-4">{savingsRecommendations.map((r,i)=><article key={r.id} className="card p-5 md:p-6"><div className="flex flex-wrap items-start justify-between gap-4"><div className="flex gap-3"><span className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand-soft text-brand"><span className="mono text-sm font-bold">0{i+1}</span></span><div><div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-paper-deep px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-ink-muted">{r.category}</span><span className="text-xs font-semibold text-watch-ink">{r.priority}</span></div><h3 className="mt-2 font-heading text-lg font-bold">{r.title}</h3><p className="mt-1 text-xs text-ink-muted">{r.jobName}</p></div></div><div className="min-w-[180px] rounded-xl bg-paper-deep px-4 py-3"><p className="text-[10px] font-semibold uppercase tracking-wide text-ink-muted">Potential monthly opportunity</p><p className="mono mt-1 text-lg font-bold">{r.opportunityHighUsd ? `${usd(r.opportunityLowUsd)}–${usd(r.opportunityHighUsd)}` : "Not quantified"}</p><p className="mt-1 text-[10px] text-ink-muted">{r.confidence}</p></div></div><div className="mt-4 grid gap-4 border-t border-line pt-4 md:grid-cols-[.8fr_1.2fr]"><div><p className="text-[10px] font-bold uppercase tracking-wide text-ink-muted">Signal</p><p className="mt-1 text-sm leading-6">{r.evidence}</p></div><div><p className="text-[10px] font-bold uppercase tracking-wide text-ink-muted">Recommended next step</p><p className="mt-1 text-sm leading-6 text-ink-muted">{r.action}</p></div></div></article>)}</div><p className="mt-3 flex items-start gap-2 text-xs leading-5 text-ink-muted"><BadgeCheck size={14} className="mt-0.5 shrink-0"/>Opportunity ranges are illustrative hypotheses, not guaranteed or realized savings. A live product should calculate them from customer run and usage history, then confirm the change’s impact against subsequent billing records.</p></section><div className="mt-6 grid gap-4 md:grid-cols-2"><article className="flex gap-3 rounded-2xl border border-watch/30 bg-watch-soft p-5"><Info className="mt-0.5 size-4 shrink-0 text-watch-ink"/><div><h2 className="font-heading font-bold">Coverage has limits</h2><p className="mt-2 text-sm leading-6 text-ink-muted">Databricks’ job cost analysis counts jobs running on job compute and serverless. Jobs using SQL warehouses or all-purpose compute are excluded from job attribution, although their charges remain in overall billing usage.</p></div></article><article className="rounded-2xl border border-line bg-paper-deep p-5"><h2 className="font-heading font-bold">How attribution works</h2><p className="mt-2 text-sm leading-6 text-ink-muted">Match `system.billing.usage` job IDs to workspace and job IDs in `system.lakeflow.jobs`, then apply the effective list price from `system.billing.list_prices`. Run IDs and timeline records can provide run counts and execution context.</p></article></div><p className="mt-6 text-xs leading-5 text-ink-muted">All values on this page are illustrative sample data and represent list-price estimates, not invoice charges. See the <a className="font-semibold text-brand underline underline-offset-4" target="_blank" rel="noreferrer" href="https://docs.databricks.com/aws/en/admin/system-tables/jobs-cost">Databricks job cost analysis guidance <ArrowRight className="inline" size={12}/></a> and <a className="font-semibold text-brand underline underline-offset-4" target="_blank" rel="noreferrer" href="https://docs.databricks.com/aws/en/admin/system-tables/pricing">pricing system table schema</a>.</p></main>}
+import { ArrowRight, BriefcaseBusiness, CircleX, RotateCcw } from "lucide-react";
+import { Badge, DataTable, DeltaPill, Segmented, StatTile, StatusPill, Term } from "@/design-system/components";
+import { change, usd, usdExact } from "@/lib/format";
+import { productBreakdown, savingsRecommendations, topJobRuns, topJobs } from "@/mocks/service";
+import { Page, PageHeader, SampleBadge, SectionCard, SourceNote } from "./parts";
+
+type View = "jobs" | "runs" | "trend" | "failed" | "retries";
+type Job = (typeof topJobs)[number];
+
+const views: { value: View; label: string; title: string; body: string }[] = [
+  { value: "jobs", label: "Jobs", title: "Most expensive jobs", body: "List cost per job, with run count and who it runs as." },
+  { value: "runs", label: "Runs", title: "Most expensive runs", body: "The single runs that cost the most, grouped by job run ID." },
+  { value: "trend", label: "Trend", title: "Spend trend", body: "The last 7 days against the 7 days before, largest growth first." },
+  { value: "failed", label: "Failed runs", title: "Cost of failed runs", body: "Runs that ended in ERROR, FAILED or TIMED_OUT, and what they cost." },
+  { value: "retries", label: "Retries", title: "Repairs and retries", body: "Runs that needed more than one attempt, and the cost of the unsuccessful attempts." },
+];
+
+const jobCell = (j: { jobName: string; jobId: string }) => (
+  <>
+    <p className="font-semibold">{j.jobName}</p>
+    <p className="mt-0.5 font-mono text-[11px] text-ink-muted">Job {j.jobId}</p>
+  </>
+);
+const mono = (v: string | number) => <span className="tabular font-mono">{v}</span>;
+
+export default function JobCosts() {
+  const [view, setView] = useState<View>("jobs");
+  const current = views.find((v) => v.value === view)!;
+  const total = topJobs.reduce((s, j) => s + j.estimatedListCostUsd, 0);
+  const jobsProduct = productBreakdown.find((p) => p.product === "JOBS")!.estimatedListCostUsd;
+  const failedRuns = topJobs.reduce((s, j) => s + j.failedRuns, 0);
+  const failedCost = topJobs.reduce((s, j) => s + j.failedCostUsd, 0);
+  const repairCost = topJobs.reduce((s, j) => s + j.repairCostUsd, 0);
+  const runs = topJobs.reduce((s, j) => s + j.runs, 0);
+  const byTrend = [...topJobs].sort((a, b) => b.last7Usd - b.prev7Usd - (a.last7Usd - a.prev7Usd));
+  const related = savingsRecommendations.filter((r) => topJobs.some((j) => j.jobName === r.jobName));
+
+  return (
+    <Page>
+      <PageHeader
+        eyebrow="Jobs"
+        title="Which jobs drive spend"
+        body="Cost per job and per run, what is growing, and what failed runs and retries cost you."
+        actions={<SampleBadge />}
+      />
+
+      <section aria-label="Summary" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatTile label="Attributed to jobs shown" value={usdExact(total)} sub={`of ${usd(jobsProduct)} billed as Jobs`} foot={`${topJobs.length} jobs · ${runs} runs`} icon={<BriefcaseBusiness aria-hidden />} />
+        <StatTile label="Failed runs" value={String(failedRuns)} sub={`${((failedRuns / runs) * 100).toFixed(1)}% of runs`} foot="ERROR, FAILED or TIMED_OUT" icon={<CircleX aria-hidden />} />
+        <StatTile label="Cost of failed runs" value={usdExact(failedCost)} sub="List cost of usage on failed runs" foot="Work that produced no result" />
+        <StatTile label="Cost of repairs" value={usdExact(repairCost)} sub="Unsuccessful attempts before a success" foot="A subset of failed-run cost" icon={<RotateCcw aria-hidden />} />
+      </section>
+
+      <SectionCard title={current.title} body={current.body} flush action={<Segmented label="Job analysis" value={view} onChange={setView} options={views.map((v) => ({ value: v.value, label: v.label }))} />}>
+        <div className="px-5 pb-5 md:px-6 md:pb-6">
+          {view === "jobs" ? (
+            <DataTable<Job>
+              caption={current.title}
+              rows={topJobs}
+              rowKey={(j) => j.jobId}
+              columns={[
+                { key: "job", header: "Job", render: jobCell },
+                { key: "compute", header: "Compute", render: (j) => <Badge tone={j.serverless ? "brand" : "neutral"}>{j.serverless ? "Serverless" : "Job compute"}</Badge> },
+                { key: "runas", header: "Runs as", render: (j) => <span className="text-xs">{j.runAs}</span> },
+                { key: "tag", header: "Team tag", render: (j) => (j.team ? <span className="font-mono text-xs">{j.team}</span> : <StatusPill size="sm" status="watch" label="No tag" />) },
+                { key: "runs", header: "Runs", align: "right", render: (j) => mono(j.runs) },
+                { key: "cost", header: "Est. list cost", align: "right", render: (j) => <span className="tabular font-mono font-semibold">{usdExact(j.estimatedListCostUsd)}</span> },
+              ]}
+            />
+          ) : null}
+          {view === "runs" ? (
+            <DataTable
+              caption={current.title}
+              rows={topJobRuns}
+              rowKey={(r) => r.runId}
+              columns={[
+                { key: "run", header: "Run", render: (r) => <span className="font-mono text-xs">{r.runId}</span> },
+                { key: "job", header: "Job", render: jobCell },
+                { key: "start", header: "Started", render: (r) => <span className="text-xs text-ink-muted">{r.started}</span> },
+                { key: "min", header: "Minutes", align: "right", render: (r) => mono(r.minutes) },
+                { key: "state", header: "Result", render: (r) => <StatusPill size="sm" status={r.resultState === "SUCCEEDED" ? "pass" : "fix"} label={r.resultState} /> },
+                { key: "cost", header: "Est. list cost", align: "right", render: (r) => <span className="tabular font-mono font-semibold">{usdExact(r.estimatedListCostUsd)}</span> },
+              ]}
+            />
+          ) : null}
+          {view === "trend" ? (
+            <DataTable<Job>
+              caption={current.title}
+              rows={byTrend}
+              rowKey={(j) => j.jobId}
+              columns={[
+                { key: "job", header: "Job", render: jobCell },
+                { key: "prev", header: "Oct 29 – Nov 4", align: "right", render: (j) => mono(usd(j.prev7Usd)) },
+                { key: "last", header: "Nov 5 – 11", align: "right", render: (j) => mono(usd(j.last7Usd)) },
+                { key: "growth", header: "Growth", align: "right", render: (j) => mono(`${j.last7Usd >= j.prev7Usd ? "+" : "−"}${usd(Math.abs(j.last7Usd - j.prev7Usd))}`) },
+                { key: "pct", header: "Change", align: "right", render: (j) => <DeltaPill percent={change(j.last7Usd, j.prev7Usd)} /> },
+              ]}
+            />
+          ) : null}
+          {view === "failed" ? (
+            <DataTable<Job>
+              caption={current.title}
+              rows={[...topJobs].sort((a, b) => b.failedCostUsd - a.failedCostUsd)}
+              rowKey={(j) => j.jobId}
+              columns={[
+                { key: "job", header: "Job", render: jobCell },
+                { key: "runs", header: "Runs", align: "right", render: (j) => mono(j.runs) },
+                { key: "failed", header: "Failed", align: "right", render: (j) => mono(j.failedRuns) },
+                { key: "ratio", header: "Success", align: "right", render: (j) => mono(`${(((j.runs - j.failedRuns) / j.runs) * 100).toFixed(0)}%`) },
+                { key: "cost", header: "Cost of failures", align: "right", render: (j) => <span className="tabular font-mono font-semibold">{usdExact(j.failedCostUsd)}</span> },
+              ]}
+            />
+          ) : null}
+          {view === "retries" ? (
+            <DataTable<Job>
+              caption={current.title}
+              rows={topJobs.filter((j) => j.repairs > 0).sort((a, b) => b.repairCostUsd - a.repairCostUsd)}
+              rowKey={(j) => j.jobId}
+              columns={[
+                { key: "job", header: "Job", render: jobCell },
+                { key: "repairs", header: "Repairs", align: "right", render: (j) => mono(j.repairs) },
+                { key: "time", header: "Time to repair", align: "right", render: (j) => mono(`${j.repairMinutes} min`) },
+                { key: "cost", header: "Cost of repairs", align: "right", render: (j) => <span className="tabular font-mono font-semibold">{usdExact(j.repairCostUsd)}</span> },
+              ]}
+            />
+          ) : null}
+        </div>
+      </SectionCard>
+
+      {related.length > 0 ? (
+        <SectionCard title="Recommendations for these jobs" action={<Link href="/recommendations" className="inline-flex items-center gap-1 text-sm font-semibold text-brand">All recommendations <ArrowRight className="size-3.5" aria-hidden /></Link>}>
+          <ul className="divide-y divide-line">
+            {related.map((r) => (
+              <li key={r.id} className="flex flex-wrap items-start justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                <div>
+                  <p className="text-sm font-semibold">{r.title}</p>
+                  <p className="mt-0.5 text-xs text-ink-muted">{r.jobName} · {r.evidence}</p>
+                </div>
+                <span className="tabular font-mono text-xs font-bold whitespace-nowrap">{usd(r.opportunityLowUsd)}–{usd(r.opportunityHighUsd)}/mo</span>
+              </li>
+            ))}
+          </ul>
+        </SectionCard>
+      ) : null}
+
+      <SourceNote tables={["system.billing.usage", "system.billing.list_prices", "system.lakeflow.jobs", "system.lakeflow.job_run_timeline"]} href="https://docs.databricks.com/aws/en/admin/system-tables/jobs-cost" linkLabel="Job cost guide">
+        Only jobs on <Term k="jobCompute">job compute</Term> and <Term k="serverless">serverless</Term> are covered. Jobs that run on SQL warehouses or all-purpose compute are
+        not billed as jobs, so they are missing here and stay in the billing totals. A live connection reads one cloud region at a time: workspaces in other regions need
+        their own query.
+      </SourceNote>
+    </Page>
+  );
+}

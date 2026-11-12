@@ -64,7 +64,7 @@ function HeroEvidence() {
         <ul className="mt-4 space-y-2 border-t border-dashed border-line pt-3 text-[12px]">
           <li className="flex items-center justify-between gap-3"><span className="flex items-center gap-2"><Check className="size-4 text-pass-ink"/> Workspace IDs grouped</span><span className="mono text-ink-muted">4 / 4</span></li>
           <li className="flex items-center justify-between gap-3"><span className="flex items-center gap-2"><Check className="size-4 text-pass-ink"/> Usage summed</span><span className="mono text-ink-muted">484.8k DBU</span></li>
-          <li className="flex items-center justify-between gap-3"><span className="flex items-center gap-2"><ScanSearch className="size-4 text-watch-ink"/> Billing products</span><span className="mono text-ink-muted">5 origins</span></li>
+          <li className="flex items-center justify-between gap-3"><span className="flex items-center gap-2"><ScanSearch className="size-4 text-watch-ink"/> Billing products</span><span className="mono text-ink-muted">6 origins</span></li>
         </ul>
         <div className="mt-4 flex items-end justify-between border-t border-dashed border-line pt-3">
           <div><p className="text-[11px] text-ink-muted">Largest product · JOBS</p><p className="mono text-xl font-bold">$17,500<span className="text-xs font-normal text-ink-muted"> list est.</span></p></div>

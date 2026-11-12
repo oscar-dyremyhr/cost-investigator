@@ -170,7 +170,7 @@ export default function Styleguide() {
           />
           <StatTile
             label="Billing products"
-            value="5"
+            value="6"
             sub="Distinct product origins"
             foot="Across 4,382 aggregated records"
             icon={<Layers3 aria-hidden />}

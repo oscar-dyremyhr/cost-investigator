@@ -1,9 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import Link from "next/link";
-import { AlertTriangle, ArrowLeft, ArrowRight, BellRing, CircleDollarSign, Gauge, ShieldCheck, TrendingUp } from "lucide-react";
-import ThemeToggle from "@/design-system/components/ThemeToggle";
+import { AlertTriangle, ArrowRight, BellRing, CircleDollarSign, Gauge, ShieldCheck, TrendingUp } from "lucide-react";
 import { billingSummary, productBreakdown, usageRows } from "@/mocks/service";
 
 const STORAGE_KEY = "cost-investigator-budget-v1";
@@ -56,8 +54,8 @@ export default function BudgetMonitor() {
     window.setTimeout(() => setSaved(false), 2200);
   };
 
-  return <main className="min-h-screen bg-paper px-5 py-8 md:px-8 md:py-10"><div className="mx-auto max-w-6xl">
-    <div className="flex items-center justify-between gap-4"><Link href="/app" className="inline-flex items-center gap-2 text-sm font-semibold text-brand"><ArrowLeft size={16}/>Back to overview</Link><ThemeToggle/></div>
+  return <main className="bg-paper px-5 py-8 md:px-8 md:py-10"><div className="mx-auto max-w-6xl">
+    
     <div className="mt-8 flex flex-wrap items-end justify-between gap-4"><div><p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[.15em] text-brand"><Gauge size={15}/> Budget monitor</p><h1 className="mt-2 font-heading text-4xl font-extrabold tracking-tight">Keep spend on pace</h1><p className="mt-3 max-w-2xl leading-7 text-ink-muted">Set a monthly guardrail and see whether current Databricks usage is likely to cross it.</p></div><span className="rounded-full border border-line bg-surface px-3 py-2 text-xs text-ink-muted">{pace.label} · sample billing data</span></div>
 
     <section className={`mt-6 flex flex-wrap items-start gap-3 rounded-2xl border p-5 ${overBudget ? "border-fix/30 bg-fix-soft" : thresholdReached ? "border-watch/30 bg-watch-soft" : "border-pass/30 bg-pass-soft"}`} role="status">

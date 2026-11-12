@@ -2,8 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, FileText, GitCompareArrows } from "lucide-react";
-import ThemeToggle from "@/design-system/components/ThemeToggle";
+import { ArrowRight, FileText, GitCompareArrows } from "lucide-react";
 import { listCostReports, type CostReport } from "@/lib/cost-report";
 
 const money = (n: number, currency: string) => new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 0 }).format(n);
@@ -31,8 +30,8 @@ export default function CostReportHistory() {
     return current.length < 2 ? [...current, id] : [current[1], id];
   });
 
-  return <main className="min-h-screen bg-paper px-5 py-8 md:px-8 md:py-12"><div className="mx-auto max-w-4xl">
-    <div className="flex items-center justify-between gap-4"><Link href="/app" className="inline-flex items-center gap-2 text-sm font-semibold text-brand"><ArrowLeft size={16}/>Back to overview</Link><ThemeToggle/></div>
+  return <main className="bg-paper px-5 py-8 md:px-8 md:py-12"><div className="mx-auto max-w-4xl">
+    
     <div className="mt-8 flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[.15em] text-brand">Saved in this browser</p><h1 className="mt-2 font-heading text-4xl font-extrabold">Cost reports</h1><p className="mt-2 text-sm text-ink-muted">Open, share, export, or compare saved cost snapshots.</p></div><Link href="/reports/new" className="inline-flex items-center gap-2 rounded-full bg-brand px-4 py-3 text-sm font-semibold text-brand-ink">New report <FileText size={15}/></Link></div>
 
     {comparison && <section aria-live="polite" className="card mt-6 p-5 md:p-6">
