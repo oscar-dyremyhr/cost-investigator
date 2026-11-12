@@ -4,7 +4,7 @@ What a reader should not assume about this prototype.
 
 ## Simulated
 
-- **No Databricks connection.** Every number comes from generated sample data for a fictional company.
+- **No live Databricks connection.** Numbers come from generated sample data for a fictional company, or from CSV files you upload on the Data page.
 - **The onboarding connection test** always passes and sends nothing. It never asks for a secret.
 - **Alerts are not delivered.** Rules are evaluated in the browser and shown on the page.
 - **Invites send no email**, and **Refresh data now** always reports that nothing changed.
@@ -34,7 +34,10 @@ What a reader should not assume about this prototype.
 
 ## Known rough edges
 
-- Budget, Pricing and the Setup guide have not been rebuilt on the design system; `npm run lint` reports two errors in the Budget screen.
+- Pricing and the Setup guide have not been rebuilt on the design system.
+- An uploaded account shows workspaces by ID, and jobs by ID unless the job-names file is uploaded too.
+- Default alert thresholds are tuned to the sample account; set your own after uploading.
+- Different currencies in one upload are added together as if they were the same. The Data page warns about it.
 - The organization name set in Settings is not used by the sidebar or pre-filled in new reports.
 - Onboarding does not restore a half-finished draft after a reload.
 - A long share link can be cut short by some chat or email tools; the app then shows a "does not hold a report" page.

@@ -7,7 +7,7 @@ The sidebar groups pages into **Track** (see the spend), **Act** (do something a
 Overview, Billing breakdown, Jobs, Serverless, Model serving, Compute and Tags share one date range, chosen at the top of the page: this month, last month, last 7 days, last 30 days, this quarter, this year, or custom dates. Changing it re-queries the cache. It is remembered between pages and visits.
 
 - "Today" is the latest day in the cache (Nov 11, 2026 in the sample).
-- A range is always kept inside the cache. "This year" starts on Sep 1 in the sample, and the page says so.
+- A range is always kept inside the loaded data. "This year" starts on Sep 1 in the sample, and the page says so.
 - The change figure compares with the same days a month earlier (this month, last month) or with the same number of days just before (everything else). When that earlier period is not cached, no change is shown.
 
 Three things deliberately ignore the range: **alerts** look at the last 30 days, the **budget** looks at the current month, and **recommendations** are computed from the last 30 days.
@@ -23,7 +23,10 @@ Three things deliberately ignore the range: **alerts** look at the last 30 days,
 | Model serving | `/model-serving` | Cost and DBUs per endpoint, serving type, start-up DBUs, endpoints without an owner tag |
 | Compute | `/compute` | SQL warehouses, all-purpose clusters and pipelines: cost, DBUs, owner, team tag, and auto-stop or auto-termination, flagged where a recommendation rule fires |
 | Tags | `/tags` | Spend by any tag key found in the usage records, how much each key covers, and the workloads missing that tag |
+| Detail page | `/workload?kind=…&id=…` | One job, warehouse, cluster, pipeline, endpoint, notebook or workspace: daily cost, change, share, SKUs, settings, runs and its recommendations. Reached by clicking any name in a table |
 | List prices | `/prices` | Default, promotional and effective price per SKU; recent price changes; the join used for cost |
+
+**Tables** can be sorted by clicking a heading. A table with more than 8 rows gets a filter box, and one with more than 15 gets pages. **Bar lists** show the top 7 and add the rest together as "Other".
 
 Notes that hold everywhere:
 
@@ -68,7 +71,12 @@ The three serverless rules follow the alert queries in the Databricks serverless
 
 ### Budget (`/budgets`)
 
-A monthly budget and an alert threshold. The projection is a run rate: spend so far ÷ days passed × days in the month.
+- **Account budget**: a monthly amount and an alert share. The projection is a run rate: spend so far ÷ days passed × days in the month.
+- **Budgets by team, workspace or product**: each tracks only its own slice of this month's spend, with its own pace and status (*On pace*, *Close to the limit*, *Over budget*). A tag budget follows every workload carrying that tag value.
+- **Suggest**: one click adds a budget for every value of the chosen tag (or every workspace or product) at this month's projection plus 10%, rounded to a tidy number.
+- Budgets that are close to or over their limit also show on the Alerts page.
+
+A tag budget only sees tagged usage, so untagged work escapes it.
 
 ### Cost reports (`/reports`)
 
@@ -78,6 +86,8 @@ A monthly budget and an alert threshold. The projection is a run rate: spend so 
 - **History**: open, compare two reports product by product, or delete.
 
 ## Account
+
+**Data** (`/data`): shows what is loaded and lets you replace the sample with your own account. Run the six queries in Databricks SQL, download each result as CSV and choose the files. Files are recognised by their columns; only the usage file is required. The page shows what was read from each file, what is missing, and data-health checks (unpriced usage, mixed currencies or units, unnamed products, tag coverage). Files are read in the browser and kept in its IndexedDB storage; nothing is sent to a server. Each query has a downloadable sample file showing the expected format.
 
 **Settings** (`/settings`): invite and remove teammates with a role, rename the organization, enter negotiated prices, see the read-only connection and which workspaces are included, and reset the demo.
 

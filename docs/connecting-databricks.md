@@ -2,6 +2,10 @@
 
 This describes how to replace the sample cache with data from a real account. The prototype does not do this itself, and **the SQL in `src/data/sql.ts` has not been run against a live workspace**. Treat it as a starting point and test each statement on yours.
 
+## Try it without building anything
+
+The **Data** page (`/data`) accepts CSV exports of the queries below. Run them in Databricks SQL, download the results, and choose the files; the app switches to your account in the browser. This is the quickest way to check the SQL and see real numbers before writing a connector. Only the usage file is required.
+
 ## What the app needs
 
 Six result sets, defined by `CostDataSource` in `src/data/contract.ts`:
@@ -35,7 +39,7 @@ and "Can use" on one SQL warehouse. It needs no access to business data and no a
 1. **Implement `CostDataSource`** on a server. Run each statement on the SQL warehouse, for example with the Statement Execution API, and return the rows.
 2. **Parse two columns.** `custom_tags` comes back as JSON text (a map cannot be grouped on), so parse it into an object. Numbers may arrive as strings; convert `usage_quantity`, `list_cost` and the counts.
 3. **Fill a cache** with `loadCache(source, { from, to }, refreshedAt)`.
-4. **Hand the cache to the app.** `queryUsage` and `totalFor` take a cache as their second argument and default to `sampleCache`; `cacheInfo` in `src/mocks/query.ts` reads its dates from it. Serve your cache from an API route and use it in those places.
+4. **Hand the cache to the app.** The app reads the active cache from the `useData` store (`src/store/app.ts`); the CSV upload sets it with `useData.setState({ cache, source })`. Fetch your cache from an API route and set it the same way.
 5. **Refresh on a schedule.** Usage records usually arrive within about 12 hours, so a few times a day is enough.
 
 Credentials must stay on the server. Never put a client secret in browser storage.

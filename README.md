@@ -27,7 +27,9 @@ Open http://localhost:3000. Everything runs on sample data for a fictional compa
 | `/prices` | Default, promotional and effective list price per SKU, and price changes | `system.billing.list_prices` |
 | `/recommendations` | Findings computed from the last 30 days by five rules, each with its threshold and the figures behind it | billing, lakeflow and compute tables |
 | `/alerts` | Threshold rules (serverless per workspace, user and job; daily spike; tags) | modelled on the serverless alert queries |
-| `/budgets` | Monthly budget and run-rate projection | |
+| `/budgets` | Account budget, plus budgets per tag value, workspace or product, each with its own pace | |
+| `/workload` | Detail page for one job, warehouse, cluster, pipeline, endpoint, notebook or workspace | all of the above, filtered |
+| `/data` | What is loaded; upload CSV exports of the six queries to see your own account | |
 | `/settings` | Team invites and roles, organization name, Databricks connection, Reset demo | |
 | `/reports` | Generate a report (audience, sections, note), then share it by link, export PDF or CSV, copy a text summary, compare or delete | snapshot of all of the above |
 
@@ -50,7 +52,9 @@ Databricks system tables ──SQL──▶ CostDataSource ──loadCache──
 - `src/data/sql.ts` holds the SQL for each method. Cost is `usage_quantity × pricing.effective_list.default`, joined on SKU, cloud, unit and the price period, with signed quantities summed so corrections net out.
 - `src/mocks/cache.ts` is the sample: 72 days (Sep 1 – Nov 11, 2026) for a fictional account with 4 workspaces, 9 jobs, 3 SQL warehouses, 2 clusters, 2 pipelines, 5 serving endpoints and 4 serverless notebooks, including a price change and a promotion.
 
-To plug in a real account: implement `CostDataSource` by running each statement on a SQL warehouse (for example with the Statement Execution API, signed in as a read-only service principal), call `loadCache` on a schedule, and pass that cache to `queryUsage` in place of `sampleCache`. The screens do not change.
+To try your own account without building anything, open `/data`, run the six queries in Databricks SQL, and upload the CSV results; the app switches to that data in your browser.
+
+To plug in a real account properly: implement `CostDataSource` by running each statement on a SQL warehouse (for example with the Statement Execution API, signed in as a read-only service principal), call `loadCache` on a schedule, and pass that cache to `queryUsage` in place of `sampleCache`. The screens do not change.
 
 What is not real yet: the SQL has not been run against a live workspace, so test it on yours first. The prices are invented. Job cost only covers job compute and serverless, and reads one cloud region at a time.
 

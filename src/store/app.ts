@@ -27,26 +27,63 @@ export const useRange = create<{ choice: import("@/lib/range").RangeChoice }>()(
  */
 export type DataSource = { kind: "sample" } | { kind: "upload"; files: string[]; loadedAt: string; rows: number };
 let uploadKept = true;
-const roomyStorage = {
-  getItem: (key: string) => localStorage.getItem(key),
-  removeItem: (key: string) => localStorage.removeItem(key),
-  setItem: (key: string, value: string) => {
+export const wasUploadKept = () => uploadKept;
+
+type DataState = { cache: import("@/data/contract").CostCache | null; source: DataSource };
+type Stored = { state: DataState; version?: number };
+
+/**
+ * Uploads can be tens of megabytes, far past what localStorage holds, so they
+ * are kept in IndexedDB, which stores the rows as they are. Where IndexedDB is
+ * missing or refuses, the upload simply lasts until the tab is closed.
+ */
+const DB_NAME = "cost-investigator";
+const STORE = "data";
+function withStore<T>(mode: IDBTransactionMode, run: (store: IDBObjectStore) => IDBRequest<T>): Promise<T | null> {
+  return new Promise((resolve) => {
+    if (typeof indexedDB === "undefined") return resolve(null);
     try {
-      localStorage.setItem(key, value);
-      uploadKept = true;
+      const open = indexedDB.open(DB_NAME, 1);
+      open.onupgradeneeded = () => open.result.createObjectStore(STORE);
+      open.onerror = () => resolve(null);
+      open.onsuccess = () => {
+        try {
+          const tx = open.result.transaction(STORE, mode);
+          const request = run(tx.objectStore(STORE));
+          tx.oncomplete = () => {
+            open.result.close();
+            resolve(request.result ?? null);
+          };
+          tx.onerror = tx.onabort = () => {
+            open.result.close();
+            resolve(null);
+          };
+        } catch {
+          resolve(null);
+        }
+      };
     } catch {
-      // Too large for browser storage: keep it in memory only.
-      localStorage.removeItem(key);
-      uploadKept = false;
+      resolve(null);
     }
+  });
+}
+const uploadStorage = {
+  getItem: async (name: string) => (await withStore<Stored | undefined>("readonly", (st) => st.get(name))) ?? null,
+  setItem: async (name: string, value: Stored) => {
+    // After the write, read the key back: a quota error aborts the transaction and leaves nothing.
+    await withStore("readwrite", (st) => st.put(value, name));
+    uploadKept = value.state.cache === null || (await withStore<IDBValidKey | undefined>("readonly", (st) => st.getKey(name))) !== null;
+  },
+  removeItem: async (name: string) => {
+    await withStore("readwrite", (st) => st.delete(name));
   },
 };
-export const wasUploadKept = () => uploadKept;
-export const useData = create<{ cache: import("@/data/contract").CostCache | null; source: DataSource }>()(
-  persist(() => ({ cache: null as import("@/data/contract").CostCache | null, source: { kind: "sample" } as DataSource }), {
+
+export const useData = create<DataState>()(
+  persist(() => ({ cache: null, source: { kind: "sample" } }) as DataState, {
     name: "cost-investigator-data",
     version: 1,
-    storage: createJSONStorage(() => roomyStorage),
+    storage: uploadStorage,
   }),
 );
 

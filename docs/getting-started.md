@@ -32,7 +32,7 @@ No sign-in is needed. Everything you change (budget, alert thresholds, recommend
 
 Before pushing a change, run `npm run type-check`, `npm test` and `npm run build`.
 
-`npm run lint` currently reports two errors in `src/screens/app/BudgetMonitor.tsx`, one of the screens that has not been rebuilt on the design system yet. New code should lint clean.
+`npm run lint` is clean.
 
 ## A five-minute tour
 
@@ -41,4 +41,7 @@ Before pushing a change, run `npm run type-check`, `npm test` and `npm run build
 3. Open **Jobs** and switch between Jobs, Runs, Trend, Failed runs and Retries.
 4. Open **Recommendations**, press **How we found this** on one, then **Plan it**.
 5. Open **Alerts** and change a threshold; the rule fires or goes quiet at once.
-6. Press **Create report**, pick dates and sections, and generate. Use **Share** to get a link, then open it in a private window.
+6. Open **Budget** and press **Suggest one for each team value**.
+7. Click any job name to open its detail page.
+8. Open **Data**, download the sample usage file, and upload it back to see how your own export would load.
+9. Press **Create report**, pick dates and sections, and generate. Use **Share** to get a link, then open it in a private window.

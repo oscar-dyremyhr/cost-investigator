@@ -53,7 +53,9 @@ export default function DataSourcePage() {
       useData.setState({ cache: result.cache, source: { kind: "upload", files: files.map((f) => f.name), loadedAt: result.cache.refreshedAt, rows: result.cache.usage.length } });
       // The saved range may not exist in the new data; start on its latest month.
       useRange.setState({ choice: { preset: "mtd" } });
-      setReport({ files: result.files, notes: [...result.notes, ...(wasUploadKept() ? [] : ["This upload is too large to keep in the browser. It stays until you close or reload the tab."])] });
+      // Give the browser a moment to store the upload, then say so if it could not.
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      setReport({ files: result.files, notes: [...result.notes, ...(wasUploadKept() ? [] : ["This browser could not store the upload. It stays until you close or reload the tab."])] });
       toast({ title: "Your data is loaded", description: `${num(result.cache.usage.length)} usage rows, ${formatRange({ from: result.cache.from, to: result.cache.to })}.` });
     } catch {
       setError("Those files could not be read. Check that they are CSV text files.");
@@ -174,7 +176,7 @@ export default function DataSourcePage() {
             { ok: whole.unpriced.rows === 0, good: "Every usage row has a list price.", bad: `${num(whole.unpriced.rows)} usage rows have no list price and count as $0. SKUs: ${whole.unpriced.skus.slice(0, 4).join(", ")}${whole.unpriced.skus.length > 4 ? "…" : ""}` },
             { ok: whole.currencies.length <= 1, good: "All costs are in one currency.", bad: `Costs in ${whole.currencies.join(" and ")} are added together as if they were the same.` },
             { ok: whole.units.length <= 1, good: "All usage is measured in one unit.", bad: `Usage comes in ${whole.units.join(", ")}. DBU totals count DBU rows only.` },
-            { ok: unknownProducts.length === 0, good: "Every billing product has a friendly name.", bad: `${unknownProducts.length} billing products have no friendly name and are shown by their code: ${unknownProducts.map((p) => p.product).slice(0, 5).join(", ")}.` },
+            { ok: unknownProducts.length === 0, good: "Every billing product has a friendly name.", bad: `${unknownProducts.length === 1 ? "1 billing product has" : `${unknownProducts.length} billing products have`} no friendly name and ${unknownProducts.length === 1 ? "is" : "are"} shown by a readable form of the code: ${unknownProducts.map((p) => p.product).slice(0, 5).join(", ")}.` },
             { ok: whole.taggedPercent >= 85, good: `${whole.taggedPercent.toFixed(0)}% of list cost carries a tag.`, bad: `Only ${whole.taggedPercent.toFixed(0)}% of list cost carries a tag, so the rest cannot be traced to an owner.` },
             { ok: counts.jobs > 0 && counts.jobHealth > 0, good: "Job names and run outcomes are loaded.", bad: "Job names or run outcomes are missing, so jobs show by ID or without failure counts." },
             { ok: counts.resources > 0, good: "Warehouse, cluster and pipeline settings are loaded.", bad: "No warehouse, cluster or pipeline settings, so the two compute recommendations cannot fire." },

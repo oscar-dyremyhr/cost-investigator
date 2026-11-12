@@ -62,8 +62,26 @@ One row per day and job: `runs`, `failed_runs`, `failed_list_cost`, `repairs`, `
 | `warehouses`, `clusters`, `pipelines` | `SQL`, `ALL_PURPOSE` and `DLT` rows grouped by their ID, joined to `resources` for name and stop setting |
 | `tags` | For every tag key found: spend per value, and how much of the total the key covers |
 | `untaggedWorkloads`, `missingTag(key)` | Workloads with no tag at all, or lacking one key, largest first |
+| `unpriced` | Rows where no list price matched (`currency_code` is null). They count as $0, so totals are too low |
+| `currencies`, `units` | Distinct currencies and usage units. More than one currency means different currencies were added together |
 
 The range is clamped to the cache. `totalFor(range)` returns `null` when any part of a range lies outside it, which is how the app knows not to show a change figure.
+
+## One workload (`queryWorkload`)
+
+`queryWorkload(kind, id, range, cache)` returns everything known about one job, warehouse, cluster, pipeline, endpoint, notebook or workspace: name, owner, tags, settings, cost and DBUs in the range, a daily series with zeros for quiet days, cost by SKU, run health and top runs for a job, and the workloads inside a workspace. `known` is false when the cache has never seen the ID.
+
+## Scopes
+
+A `Scope` is a slice of spend that can have its own budget: a tag value, a workspace or a billing product. `scopeSpend(scope, range, cache)` returns its list cost.
+
+## Performance
+
+Lookups (job names, resources) are indexed once per cache, and a query makes a small, fixed number of passes over the rows. A test builds 18,000 rows and 600 jobs and asserts the answer comes back quickly.
+
+## Loading CSV files
+
+`src/data/csv.ts` turns CSV exports of the six queries into a cache (`cacheFromFiles`) and back (`cacheToFiles`, used for the sample downloads). Each file is recognised by its column names. Every cell is checked and converted; rows without a valid date, SKU or quantity are skipped and counted. A usage row with no cost is kept and marked unpriced, or priced on the spot when a list-prices file is uploaded with it.
 
 ## The sample cache
 
@@ -97,6 +115,5 @@ Nov 1–11 is built to match fixed month-to-date figures in `src/mocks/fixtures/
 
 ## Not in the cache
 
-- **Workspace names and regions** come from `fixtures/workloads.ts`. Billing only knows IDs.
-- **The List prices page** reads the price fixture directly.
-- **The budget projection** uses the fixed month-to-date anchor.
+- **Workspace names and regions** come from `fixtures/workloads.ts`. Billing only knows IDs, so an uploaded account shows `Workspace <id>`.
+- **Friendly product names** are in `src/content/products.ts`. A product not listed there is shown by a readable form of its code.
