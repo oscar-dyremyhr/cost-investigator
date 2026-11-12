@@ -1,0 +1,6 @@
+/** Central user-facing content entry point, matching the Receipts project convention. */
+export { landingPlatforms, landingSteps } from "./landing";
+export { initialOnboardingSetup, onboardingGrantSql, onboardingSteps, onboardingWorkspaces } from "./onboarding";
+export type { OnboardingSetup } from "./onboarding";
+export { pricingFaqs } from "./pricing-copy";
+export { setupGrantSql, setupPermissions } from "./setup-guide";

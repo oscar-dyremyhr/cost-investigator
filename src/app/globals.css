@@ -1,0 +1,15 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "../design-system/tokens.css";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+@theme inline {
+ --color-paper:var(--paper); --color-paper-deep:var(--paper-deep); --color-surface:var(--surface); --color-ink:var(--ink); --color-ink-muted:var(--ink-muted); --color-brand:var(--brand); --color-brand-ink:var(--brand-ink); --color-brand-soft:var(--brand-soft); --color-mint:var(--mint); --color-sun:var(--sun); --color-on-accent:var(--on-accent); --color-line:var(--line); --color-line-strong:var(--line-strong); --color-overlay:var(--overlay); --color-pass:var(--status-pass); --color-pass-ink:var(--status-pass-ink); --color-pass-soft:var(--status-pass-soft); --color-watch:var(--status-watch); --color-watch-ink:var(--status-watch-ink); --color-watch-soft:var(--status-watch-soft); --color-fix:var(--status-fix); --color-fix-ink:var(--status-fix-ink); --color-fix-soft:var(--status-fix-soft); --font-sans:var(--font-inter),ui-sans-serif,system-ui,sans-serif; --font-heading:var(--font-bricolage),var(--font-inter),sans-serif; --font-mono:var(--font-jetbrains),ui-monospace,monospace; --radius-card:var(--r-card); --ease-spring:cubic-bezier(.34,1.56,.64,1);
+}
+*{box-sizing:border-box} html{scroll-behavior:smooth} body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font-inter),sans-serif} button,a{transition:all .18s ease} button{cursor:pointer} :focus-visible{outline:2px solid var(--brand);outline-offset:2px} ::selection{background:var(--sun);color:var(--ink)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-card);box-shadow:var(--sh-card)} .mono{font-family:var(--font-jetbrains),monospace;font-variant-numeric:tabular-nums} .sidebar-link{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;color:var(--ink-muted);font-size:14px;font-weight:550}.sidebar-link:hover,.sidebar-link.active{background:var(--brand-soft);color:var(--brand)}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.001ms!important;transition-duration:.001ms!important}}
+@page{size:A4;margin:16mm}
+@media print{body *{visibility:hidden!important}.report-preview,.report-preview *{visibility:visible!important}.report-preview{position:absolute!important;inset:0!important;width:100%!important;max-width:none!important;border:0!important;box-shadow:none!important;background:white!important;color:#14161f!important}.report-preview button{display:none!important}.report-preview{-webkit-print-color-adjust:exact;print-color-adjust:exact}.print-page-break{break-before:page;page-break-before:always}.break-inside-avoid{break-inside:avoid;page-break-inside:avoid}}
+.zigzag-paper{--zz:7px;mask:conic-gradient(from -45deg at bottom,#0000,#000 1deg 89deg,#0000 90deg) 50%/calc(2*var(--zz)) 100%}

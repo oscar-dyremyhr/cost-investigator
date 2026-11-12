@@ -1,0 +1,103 @@
+/*
+ * Receipts design tokens — the only place colours are defined.
+ * Light values sit on :root; dark values on [data-theme="dark"].
+ * Everything else (Tailwind utilities, components, print) reads these variables.
+ */
+:root {
+  /* Core palette (from the project brief) */
+  --paper: #fbfaf7;
+  --surface: #ffffff;
+  --ink: #14161f;
+  --ink-muted: #5b6070;
+  --brand: #3d5afe;
+  --mint: #19c39a;
+  --sun: #ffc94a;
+  --status-pass: #12a672;
+  --status-watch: #e59a0b;
+  --status-fix: #e5484d;
+
+  /* Derived tokens (added so text and borders meet WCAG AA) */
+  --paper-deep: #f3f1ea; /* alternating bands, table headers */
+  --line: #e6e3db; /* hairlines, card borders */
+  --line-strong: #878c9b; /* input and control borders (3:1) */
+  --brand-ink: #ffffff; /* text on brand fills */
+  --brand-soft: #eceffe; /* tinted brand background */
+  --on-accent: #14161f; /* text on mint and sun fills, both themes */
+  --status-pass-ink: #0b7350; /* status text on surface and soft fills */
+  --status-watch-ink: #8a5a00;
+  --status-fix-ink: #c22f35;
+  --status-pass-soft: #e3f6ee;
+  --status-watch-soft: #fdf1d8;
+  --status-fix-soft: #fce8e8;
+  --overlay: rgb(20 22 31 / 0.45); /* modal and drawer scrim */
+  --sh-card: 0 8px 24px rgb(20 22 31 / 0.08);
+  --sh-pop: 0 16px 40px rgb(20 22 31 / 0.16);
+
+  /* Shape */
+  --r-input: 12px;
+  --r-card: 20px;
+
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  --paper: #0f1117;
+  --surface: #171a23;
+  --ink: #f2f1ec;
+  --ink-muted: #a3a8b8;
+  --brand: #7c8cff;
+  --mint: #3fe0b5;
+  --sun: #ffd76e;
+  --status-pass: #34d399;
+  --status-watch: #fbbf24;
+  --status-fix: #f87171;
+
+  --paper-deep: #0b0d12;
+  --line: #2a2e3b;
+  --line-strong: #6f7689;
+  --brand-ink: #0f1117;
+  --brand-soft: #1f2547;
+  --on-accent: #14161f;
+  --status-pass-ink: #34d399;
+  --status-watch-ink: #fbbf24;
+  --status-fix-ink: #f87171;
+  --status-pass-soft: #10322a;
+  --status-watch-soft: #3a2e10;
+  --status-fix-soft: #3d1a1d;
+  --overlay: rgb(0 0 0 / 0.6);
+  --sh-card: 0 8px 24px rgb(0 0 0 / 0.4);
+  --sh-pop: 0 16px 40px rgb(0 0 0 / 0.55);
+
+  color-scheme: dark;
+}
+
+/* Printed reports always use the light palette. */
+@media print {
+  :root,
+  [data-theme="dark"] {
+    --paper: #ffffff;
+    --surface: #ffffff;
+    --ink: #14161f;
+    --ink-muted: #5b6070;
+    --brand: #3d5afe;
+    --mint: #19c39a;
+    --sun: #ffc94a;
+    --status-pass: #12a672;
+    --status-watch: #e59a0b;
+    --status-fix: #e5484d;
+    --paper-deep: #f3f1ea;
+    --line: #e6e3db;
+    --line-strong: #878c9b;
+    --brand-ink: #ffffff;
+    --brand-soft: #eceffe;
+    --status-pass-ink: #0b7350;
+    --status-watch-ink: #8a5a00;
+    --status-fix-ink: #c22f35;
+    --status-pass-soft: #e3f6ee;
+    --status-watch-soft: #fdf1d8;
+    --status-fix-soft: #fce8e8;
+    --sh-card: none;
+    --sh-pop: none;
+    color-scheme: light;
+  }
+}
