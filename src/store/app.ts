@@ -21,3 +21,27 @@ export const useAlertRules = create<{ overrides: Record<string, AlertOverride> }
     storage: createJSONStorage(() => localStorage),
   }),
 );
+
+/** Teammates invited in this browser. The owner is always first and is not stored. */
+export const useTeam = create<{ invited: import("@/lib/team").Member[] }>()(
+  persist(() => ({ invited: [] as import("@/lib/team").Member[] }), {
+    name: "cost-investigator-team",
+    version: 1,
+    storage: createJSONStorage(() => localStorage),
+  }),
+);
+
+/** Everything this app keeps in the browser, apart from the light or dark theme. */
+const THEME_KEY = "cost-investigator-theme";
+export function resetDemo() {
+  try {
+    for (const key of Object.keys(window.localStorage)) {
+      if (key.startsWith("cost-investigator-") && key !== THEME_KEY) window.localStorage.removeItem(key);
+    }
+  } catch {
+    /* Nothing was stored, so there is nothing to clear. */
+  }
+  useRecommendations.setState({ statuses: {} });
+  useAlertRules.setState({ overrides: {} });
+  useTeam.setState({ invited: [] });
+}

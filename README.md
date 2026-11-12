@@ -24,6 +24,7 @@ Open http://localhost:3000. Everything runs on sample data for a fictional compa
 | `/recommendations` | Findings to decide on, each with its rule, query sketch and sample rows | billing, lakeflow and compute tables |
 | `/alerts` | Threshold rules (serverless per workspace, user and job; daily spike; tags) | modelled on the serverless alert queries |
 | `/budgets` | Monthly budget and run-rate projection | |
+| `/settings` | Team invites and roles, organization name, Databricks connection, Reset demo | |
 | `/reports` | Generate a report (audience, sections, note), then share it by link, export PDF or CSV, copy a text summary, compare or delete | snapshot of all of the above |
 
 Marketing and setup pages: `/` (landing), `/pricing`, `/onboarding` (a four-step wizard: account, connect, budget, first review), `/setup`, and `/styleguide` for the design system. The landing page and onboarding follow the Receipts (sp1) layout and are built from the design system; their words live in `src/content/landing.ts` and `src/content/onboarding.ts`.

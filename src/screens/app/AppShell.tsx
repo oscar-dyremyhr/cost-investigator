@@ -3,7 +3,7 @@
 import { Suspense, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BellRing, Bot, BriefcaseBusiness, Cloud, FileText, Gauge, LayoutDashboard, Layers3, Lightbulb, Tags, Zap } from "lucide-react";
+import { BellRing, Bot, BriefcaseBusiness, Cloud, FileText, Gauge, LayoutDashboard, Layers3, Lightbulb, Settings, Tags, Zap } from "lucide-react";
 import { ButtonLink, Logo, LogoMark, ThemeToggle } from "@/design-system/components";
 import { useAlerts, useRecommendationSummary } from "@/lib/use-app-state";
 import { cn } from "@/lib/utils";
@@ -28,6 +28,10 @@ const groups = [
       { href: "/budgets", label: "Budget", icon: Gauge },
       { href: "/reports", label: "Cost reports", icon: FileText },
     ],
+  },
+  {
+    label: "Account",
+    items: [{ href: "/settings", label: "Settings", icon: Settings }],
   },
 ];
 const allItems = groups.flatMap((g) => g.items);
