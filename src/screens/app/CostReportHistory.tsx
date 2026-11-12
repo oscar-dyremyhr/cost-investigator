@@ -1,47 +1,133 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, FileText, GitCompareArrows } from "lucide-react";
-import { listCostReports, type CostReport } from "@/lib/cost-report";
+import { FileText, GitCompareArrows, Trash2 } from "lucide-react";
+import { Badge, Button, ButtonLink, DataTable, EmptyState, Modal, toast } from "@/design-system/components";
+import { reportAudiences } from "@/content/cost-report";
+import { deleteCostReport, listCostReports, type CostReport } from "@/lib/cost-report";
+import { usd } from "@/lib/format";
+import { useHydrated } from "@/lib/use-hydrated";
+import { Page, PageHeader, SectionCard } from "./parts";
 
-const money = (n: number, currency: string) => new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 0 }).format(n);
-const reportDate = (value: string) => new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+const when = (value: string) => new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+const signed = (n: number) => `${n > 0 ? "+" : n < 0 ? "−" : ""}${usd(Math.abs(n))}`;
+const audienceName = (id: string) => reportAudiences.find((a) => a.id === id)?.title ?? "Everything";
 
 export default function CostReportHistory() {
-  const [reports, setReports] = useState<CostReport[]>([]);
+  const hydrated = useHydrated();
+  const [version, setVersion] = useState(0);
   const [compareIds, setCompareIds] = useState<string[]>([]);
-  useEffect(() => { setReports(listCostReports()); }, []);
+  const [toDelete, setToDelete] = useState<CostReport | null>(null);
+  // Re-read after a delete; storage is the source of truth.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const reports = useMemo(() => (hydrated ? listCostReports() : []), [hydrated, version]);
 
   const comparison = useMemo(() => {
-    if (compareIds.length !== 2) return null;
-    const pair = compareIds.map((id) => reports.find((report) => report.id === id)).filter((report): report is CostReport => Boolean(report));
+    const pair = compareIds.map((id) => reports.find((r) => r.id === id)).filter((r): r is CostReport => Boolean(r));
     if (pair.length !== 2) return null;
-    pair.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-    const [before, after] = pair;
-    const products = new Map<string, { before: number; after: number }>();
-    before.products.forEach((item) => products.set(item.product, { before: item.estimatedListCostUsd, after: 0 }));
-    after.products.forEach((item) => products.set(item.product, { ...products.get(item.product), before: products.get(item.product)?.before ?? 0, after: item.estimatedListCostUsd }));
-    return { before, after, delta: after.estimatedListCost - before.estimatedListCost, products: [...products.entries()] };
+    const [before, after] = pair.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    const products = new Map<string, { label: string; before: number; after: number }>();
+    for (const p of before.products) products.set(p.product, { label: p.label || p.product, before: p.estimatedListCostUsd, after: 0 });
+    for (const p of after.products) products.set(p.product, { label: p.label || p.product, before: products.get(p.product)?.before ?? 0, after: p.estimatedListCostUsd });
+    return { before, after, delta: after.estimatedListCost - before.estimatedListCost, products: [...products.entries()].map(([product, v]) => ({ product, ...v })) };
   }, [compareIds, reports]);
 
-  const toggleCompare = (id: string) => setCompareIds((current) => {
-    if (current.includes(id)) return current.filter((selected) => selected !== id);
-    return current.length < 2 ? [...current, id] : [current[1], id];
-  });
+  const toggleCompare = (id: string) =>
+    setCompareIds((current) => (current.includes(id) ? current.filter((c) => c !== id) : current.length < 2 ? [...current, id] : [current[1], id]));
 
-  return <main className="bg-paper px-5 py-8 md:px-8 md:py-12"><div className="mx-auto max-w-4xl">
-    
-    <div className="mt-8 flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[.15em] text-brand">Saved in this browser</p><h1 className="mt-2 font-heading text-4xl font-extrabold">Cost reports</h1><p className="mt-2 text-sm text-ink-muted">Open, share, export, or compare saved cost snapshots.</p></div><Link href="/reports/new" className="inline-flex items-center gap-2 rounded-full bg-brand px-4 py-3 text-sm font-semibold text-brand-ink">New report <FileText size={15}/></Link></div>
+  const confirmDelete = () => {
+    if (!toDelete) return;
+    deleteCostReport(toDelete.id);
+    setCompareIds((current) => current.filter((c) => c !== toDelete.id));
+    setVersion((v) => v + 1);
+    toast({ title: "Report deleted", description: toDelete.title });
+    setToDelete(null);
+  };
 
-    {comparison && <section aria-live="polite" className="card mt-6 p-5 md:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-brand"><GitCompareArrows size={14}/>Snapshot comparison</p><h2 className="mt-2 font-heading text-xl font-bold">{comparison.before.organization} · {reportDate(comparison.before.createdAt)} to {reportDate(comparison.after.createdAt)}</h2><p className="mt-1 text-sm text-ink-muted">Estimated list cost movement across saved report snapshots.</p></div><button onClick={() => setCompareIds([])} className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold text-ink-muted hover:text-ink">Clear comparison</button></div>
-      <div className="mt-5 grid gap-3 sm:grid-cols-3"><div className="rounded-xl bg-paper-deep p-4"><p className="text-xs text-ink-muted">Earlier snapshot</p><p className="mono mt-2 text-xl font-bold">{money(comparison.before.estimatedListCost, comparison.before.currency)}</p><p className="mt-1 text-xs text-ink-muted">{comparison.before.period}</p></div><div className="rounded-xl bg-paper-deep p-4"><p className="text-xs text-ink-muted">Later snapshot</p><p className="mono mt-2 text-xl font-bold">{money(comparison.after.estimatedListCost, comparison.after.currency)}</p><p className="mt-1 text-xs text-ink-muted">{comparison.after.period}</p></div><div className="rounded-xl bg-brand-soft p-4"><p className="text-xs text-ink-muted">Change in list estimate</p><p className="mono mt-2 text-xl font-bold">{comparison.delta > 0 ? "+" : ""}{money(comparison.delta, comparison.after.currency)}</p><p className="mt-1 text-xs text-ink-muted">{comparison.before.currency === comparison.after.currency ? "Same currency" : "Currencies differ; compare with care"}</p></div></div>
-      <div className="mt-5 overflow-x-auto"><table className="w-full min-w-[420px] text-left text-sm"><thead className="text-[11px] uppercase tracking-wide text-ink-muted"><tr><th className="pb-2">Billing product</th><th className="pb-2 text-right">Earlier</th><th className="pb-2 text-right">Later</th><th className="pb-2 text-right">Change</th></tr></thead><tbody>{comparison.products.map(([product, values])=><tr key={product} className="border-t border-line"><td className="py-2.5 font-semibold">{product}</td><td className="mono py-2.5 text-right">{money(values.before, comparison.before.currency)}</td><td className="mono py-2.5 text-right">{money(values.after, comparison.after.currency)}</td><td className="mono py-2.5 text-right font-semibold">{values.after - values.before > 0 ? "+" : ""}{money(values.after - values.before, comparison.after.currency)}</td></tr>)}</tbody></table></div>
-      <p className="mt-3 text-[11px] leading-5 text-ink-muted">These snapshots use estimated list prices from the report data. They are not invoice totals; a live comparison should use equivalent date ranges and the same currency.</p>
-    </section>}
+  return (
+    <Page>
+      <PageHeader
+        eyebrow="Cost reports"
+        title="Report history"
+        body="Every report is a frozen snapshot. Open one to share it with a link or export it as PDF or CSV."
+        actions={<ButtonLink href="/reports/new" icon={<FileText aria-hidden />}>Generate report</ButtonLink>}
+      />
 
-    {reports.length ? <div className="mt-6 space-y-3">{reports.map((report)=><article key={report.id} className={`card flex flex-wrap items-center justify-between gap-4 p-5 transition ${compareIds.includes(report.id) ? "border-brand ring-1 ring-brand" : ""}`}><Link href={`/reports/${report.id}`} className="min-w-0 flex-1"><p className="font-heading font-bold">{report.organization} · {report.period}</p><p className="mono mt-1 text-xs text-ink-muted">{reportDate(report.createdAt)} · {report.id}</p></Link><div className="flex items-center gap-3"><span className="mono text-sm font-bold">{money(report.estimatedListCost, report.currency)}</span><button type="button" onClick={() => toggleCompare(report.id)} aria-pressed={compareIds.includes(report.id)} className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold ${compareIds.includes(report.id) ? "border-brand bg-brand-soft text-brand" : "border-line text-ink-muted hover:border-brand hover:text-brand"}`}><GitCompareArrows size={14}/>{compareIds.includes(report.id) ? "Selected" : "Compare"}</button><Link href={`/reports/${report.id}`} aria-label={`Open report for ${report.organization}`} className="text-brand"><ArrowRight size={16}/></Link></div></article>)}</div> : <section className="card mt-6 p-8 text-center"><span className="mx-auto grid size-12 place-items-center rounded-2xl bg-brand-soft text-brand"><FileText size={22}/></span><h2 className="mt-4 font-heading text-xl font-bold">No reports yet</h2><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-ink-muted">Create your first cost report to save a snapshot you can revisit, share from this browser, or print as a PDF.</p><Link href="/reports/new" className="mt-5 inline-flex items-center gap-2 rounded-full bg-brand px-5 py-3 text-sm font-semibold text-brand-ink">Create cost report <ArrowRight size={16}/></Link></section>}
-    <p className="mt-4 text-xs text-ink-muted">Report history is stored in local browser storage in this demo. Hosted sharing and account-wide history require the product backend.</p>
-  </div></main>;
+      {comparison ? (
+        <SectionCard
+          title="What changed between the two"
+          body={`${when(comparison.before.createdAt)} to ${when(comparison.after.createdAt)}`}
+          action={<Button variant="secondary" size="sm" onClick={() => setCompareIds([])}>Clear</Button>}
+        >
+          <div className="grid gap-3 sm:grid-cols-3">
+            {[["Earlier", usd(comparison.before.estimatedListCost), comparison.before.period], ["Later", usd(comparison.after.estimatedListCost), comparison.after.period], ["Change in list cost", signed(comparison.delta), "Later minus earlier"]].map(([label, value, sub]) => (
+              <div key={label} className="rounded-xl bg-paper-deep p-4">
+                <p className="text-xs text-ink-muted">{label}</p>
+                <p className="tabular mt-1 font-mono text-xl font-bold">{value}</p>
+                <p className="mt-1 text-xs text-ink-muted">{sub}</p>
+              </div>
+            ))}
+          </div>
+          <DataTable
+            className="mt-4"
+            caption="Change by billing product"
+            rows={comparison.products}
+            rowKey={(p) => p.product}
+            columns={[
+              { key: "p", header: "Billing product", render: (p) => p.label },
+              { key: "b", header: "Earlier", align: "right", render: (p) => <span className="tabular font-mono">{usd(p.before)}</span> },
+              { key: "a", header: "Later", align: "right", render: (p) => <span className="tabular font-mono">{usd(p.after)}</span> },
+              { key: "d", header: "Change", align: "right", render: (p) => <span className="tabular font-mono font-semibold">{signed(p.after - p.before)}</span> },
+            ]}
+          />
+          <p className="mt-3 text-xs leading-5 text-ink-muted">Both snapshots use list prices. In this demo they come from the same sample period, so the change is zero unless the sample data changed.</p>
+        </SectionCard>
+      ) : compareIds.length === 1 ? (
+        <p className="rounded-xl bg-brand-soft px-4 py-3 text-sm">Pick one more report to compare.</p>
+      ) : null}
+
+      {!hydrated ? null : reports.length === 0 ? (
+        <EmptyState title="No reports yet" body="Generate your first cost report. It takes a few seconds, and you can share or export it straight away." action={<ButtonLink href="/reports/new">Generate report</ButtonLink>} />
+      ) : (
+        <ul className="space-y-3">
+          {reports.map((report) => {
+            const selected = compareIds.includes(report.id);
+            return (
+              <li key={report.id} data-testid="report-row" className={`flex flex-wrap items-center gap-4 rounded-card border bg-surface p-5 shadow-card ${selected ? "border-brand ring-1 ring-brand" : "border-line"}`}>
+                <Link href={`/reports/${report.id}`} className="min-w-0 flex-1 rounded-lg">
+                  <p className="font-heading text-base font-bold">{report.title}</p>
+                  <p className="mt-0.5 text-sm text-ink-muted">{report.organization} · {report.period}</p>
+                  <p className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-ink-muted">
+                    <Badge>{audienceName(report.audience)}</Badge>
+                    {report.sections.length + 3} sections · made {when(report.createdAt)}
+                  </p>
+                </Link>
+                <span className="tabular font-mono text-sm font-bold">{usd(report.estimatedListCost)}</span>
+                <div className="flex items-center gap-1.5">
+                  <ButtonLink href={`/reports/${report.id}`} size="sm">Open</ButtonLink>
+                  <Button variant="secondary" size="sm" aria-pressed={selected} icon={<GitCompareArrows aria-hidden />} onClick={() => toggleCompare(report.id)}>
+                    {selected ? "Selected" : "Compare"}
+                  </Button>
+                  <Button variant="ghost" size="sm" aria-label={`Delete ${report.title}`} onClick={() => setToDelete(report)}>
+                    <Trash2 className="size-4" aria-hidden />
+                  </Button>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      <p className="text-xs leading-5 text-ink-muted">Reports are saved in this browser. A share link carries its own copy, so it keeps working after you delete the report here.</p>
+
+      <Modal open={toDelete !== null} onOpenChange={(open) => !open && setToDelete(null)} title="Delete this report?" description={toDelete ? `${toDelete.title} · made ${when(toDelete.createdAt)}` : undefined}>
+        <p className="text-sm text-ink-muted">It is removed from this browser and cannot be brought back. Links you already shared keep working.</p>
+        <div className="mt-5 flex justify-end gap-2">
+          <Button variant="secondary" onClick={() => setToDelete(null)}>Keep it</Button>
+          <Button onClick={confirmDelete} data-testid="confirm-delete">Delete report</Button>
+        </div>
+      </Modal>
+    </Page>
+  );
 }

@@ -24,7 +24,7 @@ Open http://localhost:3000. Everything runs on sample data for a fictional compa
 | `/recommendations` | Findings to decide on, each with its rule, query sketch and sample rows | billing, lakeflow and compute tables |
 | `/alerts` | Threshold rules (serverless per workspace, user and job; daily spike; tags) | modelled on the serverless alert queries |
 | `/budgets` | Monthly budget and run-rate projection | |
-| `/reports` | Create, revisit, share and compare cost reports | |
+| `/reports` | Generate a report (audience, sections, note), then share it by link, export PDF or CSV, copy a text summary, compare or delete | snapshot of all of the above |
 
 Marketing and setup pages: `/` (landing), `/pricing`, `/onboarding`, `/setup`, and `/styleguide` for the design system.
 
@@ -77,7 +77,7 @@ src/
     └── service.ts           # Single UI data boundary for the mock backend
 ```
 
-Route files stay deliberately small; screen composition lives under `src/screens`. Keep reusable copy, options, and domain content under `src/content`; plan pricing remains in `pricing.ts`. Screens should get sample data through `src/mocks/service.ts`, so the demo fixtures can later be replaced behind one boundary. Cost reports are stored as local snapshots; browser print provides PDF export in this prototype. Colors stay in `src/design-system/tokens.css`.
+Route files stay deliberately small; screen composition lives under `src/screens`. Keep reusable copy, options, and domain content under `src/content`; plan pricing remains in `pricing.ts`. Screens should get sample data through `src/mocks/service.ts`, so the demo fixtures can later be replaced behind one boundary. Cost reports are frozen snapshots saved in the browser (`src/lib/cost-report.ts`). A share link carries the whole report, compressed, in the part of the URL after `#`, so it opens in any browser with no backend and nothing is uploaded; anyone holding the link can read it and it cannot be revoked. Exports are PDF (browser print), CSV and a plain-text summary. Colors stay in `src/design-system/tokens.css`.
 
 ## Design system
 
@@ -97,7 +97,7 @@ Next.js App Router, React 19, TypeScript, Tailwind CSS v4, Radix UI, Motion, Rec
 
 A real connector can query `system.billing.usage` and `system.billing.list_prices` from a customer-authorized SQL warehouse. For job attribution, join those usage rows to `system.lakeflow.jobs` by workspace and job ID; `system.lakeflow.job_run_timeline` can add run-level status and timing context. Join usage to list prices by SKU, cloud, unit and the price validity window; use `pricing.effective_list.default` and the returned currency code for an estimated list-cost figure. Preserve signed correction records. Limit job-attributed costs to job compute and serverless workloads. Databricks documents that SQL warehouse and all-purpose compute job costs are not included in its job-cost analysis; these remain visible in the broader billing view. Job attribution is a subset, not an additive amount.
 
-This prototype has no live integration, authentication, checkout or financial advice. Cost reports can be exported through browser print-to-PDF. Share links resolve from local browser storage in this demo; cross-device sharing needs a hosted report service. Onboarding uses a sample connection check; account preferences are saved locally in the browser, and no Databricks credentials are collected.
+This prototype has no live integration, authentication, checkout or financial advice. Revocable or access-controlled sharing would need a hosted report service. Onboarding uses a sample connection check; account preferences are saved locally in the browser, and no Databricks credentials are collected.
 
 ## Savings recommendations
 

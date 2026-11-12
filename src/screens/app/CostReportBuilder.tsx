@@ -1,21 +1,127 @@
 "use client";
-import { useEffect, useState } from "react";
+
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, FileText, Info, LockKeyhole } from "lucide-react";
+import { FileText, LockKeyhole } from "lucide-react";
+import { Button, ChoiceCard, Field, Input, toast } from "@/design-system/components";
+import { reportAudiences, reportSections, type ReportAudienceId, type ReportSectionId } from "@/content/cost-report";
 import { createCostReport, saveCostReport } from "@/lib/cost-report";
-import { costReportCopy } from "@/content/cost-report";
+import { usd } from "@/lib/format";
+import { useAlerts, useBudget, useRecommendationStatuses, useRecommendationSummary } from "@/lib/use-app-state";
+import { billingSummary } from "@/mocks/service";
+import { Page, PageHeader, SampleBadge, SectionCard } from "./parts";
+
+const always = ["Cover and headline figures", "Summary", "Scope and method"];
+
 export default function CostReportBuilder() {
   const router = useRouter();
+  const statuses = useRecommendationStatuses();
+  const recommendations = useRecommendationSummary();
+  const alerts = useAlerts();
+  const { budget, projection } = useBudget();
+  const [title, setTitle] = useState("Databricks Cost Review");
   const [organization, setOrganization] = useState("Northstar Commerce");
-  useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem("cost-investigator-onboarding");
-      if (saved) {
-        const setup = JSON.parse(saved) as { organization?: string };
-        if (setup.organization?.trim()) setOrganization(setup.organization.trim());
-      }
-    } catch { /* Keep the sample organization if setup details are unavailable. */ }
-  }, []);
-  const create = () => { const report = createCostReport({ organization, currency: "USD" }); saveCostReport(report); router.push(`/reports/${report.id}`); };
-  return <main className="bg-paper px-5 py-8 md:px-8 md:py-12"><div className="mx-auto max-w-3xl"><p className="mt-8 flex items-center gap-2 text-xs font-bold uppercase tracking-[.15em] text-brand"><FileText size={15}/> Cost report</p><h1 className="mt-2 font-heading text-4xl font-extrabold">Create a shareable cost review</h1><p className="mt-3 max-w-2xl leading-7 text-ink-muted">Generate a snapshot with an executive summary, billing product breakdown, top attributed jobs and evidence-backed recommendations.</p><section className="card mt-7 p-6 md:p-8"><h2 className="font-heading text-xl font-bold">Report details</h2><div className="mt-5 grid gap-5 sm:grid-cols-2"><label className="block"><span className="text-sm font-semibold">Organization</span><input className="mt-2 w-full rounded-xl border border-line-strong bg-surface px-4 py-3 text-sm outline-none focus:border-brand" value={organization} onChange={(e)=>setOrganization(e.target.value)} /></label><div className="rounded-xl border border-line bg-surface px-4 py-3"><span className="text-sm font-semibold">Currency</span><p className="mono mt-2 text-sm">USD</p><p className="mt-1 text-xs text-ink-muted">Sample source values are in USD.</p></div></div><div className="mt-5 flex items-start gap-3 rounded-xl border border-watch/30 bg-watch-soft p-4 text-sm leading-6 text-ink-muted"><Info className="mt-0.5 size-4 shrink-0 text-watch-ink"/><p>{costReportCopy.sampleNotice} This prototype uses fixed sample data for Nov 1–11, 2026. The generated report is a snapshot of these illustrative USD values.</p></div><button onClick={create} className="mt-6 inline-flex items-center gap-2 rounded-full bg-brand px-5 py-3 text-sm font-semibold text-brand-ink">Generate report <ArrowRight size={16}/></button></section><p className="mt-4 flex items-center gap-2 text-xs leading-5 text-ink-muted"><LockKeyhole size={14}/>The report is saved in this browser. No customer data is sent to a sharing service.</p></div></main>;
+  const [audience, setAudience] = useState<ReportAudienceId>("finance");
+  const [sections, setSections] = useState<ReportSectionId[]>([...reportAudiences[0].sections]);
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const firing = alerts.filter((a) => a.rule.enabled && a.result.triggered);
+
+  const pickAudience = (id: ReportAudienceId) => {
+    setAudience(id);
+    setSections([...reportAudiences.find((a) => a.id === id)!.sections]);
+  };
+  const toggle = (id: ReportSectionId, on: boolean) => setSections((current) => (on ? [...current, id] : current.filter((s) => s !== id)));
+
+  const generate = () => {
+    setBusy(true);
+    const report = createCostReport(
+      { title, organization, audience, sections, note },
+      {
+        statuses,
+        budget: { ...budget, projection },
+        alerts: firing.map(({ rule, result }) => ({ name: rule.name, detail: result.matches.length === 1 ? result.matches[0].label : `${result.matches.length} over the threshold` })),
+      },
+    );
+    saveCostReport(report);
+    toast({ title: "Report generated", description: "It is saved in your report history." });
+    router.push(`/reports/${report.id}`);
+  };
+
+  return (
+    <Page>
+      <PageHeader eyebrow="Cost reports" title="Generate a report" body="Pick who it is for and what goes in. The report is a frozen snapshot you can share with a link or export." actions={<SampleBadge />} />
+
+      <div className="grid items-start gap-5 xl:grid-cols-[1.6fr_1fr]">
+        <div className="space-y-5">
+          <SectionCard title="1. Details" body="These appear on the cover.">
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Field label="Report title" htmlFor="report-title">
+                <Input id="report-title" value={title} maxLength={80} onChange={(e) => setTitle(e.target.value)} />
+              </Field>
+              <Field label="Organization" htmlFor="report-org">
+                <Input id="report-org" value={organization} maxLength={80} onChange={(e) => setOrganization(e.target.value)} />
+              </Field>
+            </div>
+          </SectionCard>
+
+          <SectionCard title="2. Who is it for?" body="This ticks a starting set of sections. You can change them below.">
+            <div className="grid gap-3 sm:grid-cols-3" role="radiogroup" aria-label="Audience">
+              {reportAudiences.map((a) => (
+                <ChoiceCard key={a.id} type="radio" name="audience" value={a.id} checked={audience === a.id} onChange={() => pickAudience(a.id)} title={a.title} description={a.description} />
+              ))}
+            </div>
+          </SectionCard>
+
+          <SectionCard title="3. What goes in?" body="The cover, summary and method are always included.">
+            <div className="grid gap-3 sm:grid-cols-2">
+              {reportSections.map((s) => (
+                <ChoiceCard key={s.id} type="checkbox" name={`section-${s.id}`} checked={sections.includes(s.id)} onChange={(on) => toggle(s.id, on)} title={s.title} description={s.description} />
+              ))}
+            </div>
+          </SectionCard>
+
+          <SectionCard title="4. Add a note" body="Optional. Shown under the summary, in your words.">
+            <Field label="Note to readers" htmlFor="report-note" hint={`${note.length} of 400 characters`}>
+              <textarea
+                id="report-note"
+                value={note}
+                maxLength={400}
+                rows={3}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="For example: the Nov 11 spike is the backfill we agreed on."
+                className="w-full rounded-input border border-line-strong bg-surface px-3.5 py-2.5 text-sm placeholder:text-ink-muted/70 focus-visible:border-brand focus-visible:ring-3 focus-visible:ring-brand/30 focus-visible:outline-none"
+              />
+            </Field>
+          </SectionCard>
+        </div>
+
+        <aside className="rounded-card border border-line bg-surface p-5 shadow-card md:p-6 xl:sticky xl:top-20" aria-label="Report outline">
+          <p className="text-xs font-bold tracking-wide text-ink-muted uppercase">Your report</p>
+          <p className="mt-2 text-lg font-bold break-words">{title.trim() || "Databricks Cost Review"}</p>
+          <p className="text-sm text-ink-muted">{organization.trim() || "Northstar Commerce"} · {billingSummary.periodLabel}</p>
+          <ol className="mt-4 space-y-1.5 border-t border-line pt-4 text-sm">
+            {[...always.slice(0, 2), ...reportSections.filter((s) => sections.includes(s.id)).map((s) => s.title), always[2]].map((name, i) => (
+              <li key={name} className="flex gap-2.5">
+                <span className="tabular w-5 font-mono text-xs leading-5 text-ink-muted">{String(i + 1).padStart(2, "0")}</span>
+                {name}
+              </li>
+            ))}
+          </ol>
+          <dl className="mt-4 space-y-1.5 border-t border-line pt-4 text-sm">
+            <div className="flex justify-between gap-3"><dt className="text-ink-muted">List cost</dt><dd className="tabular font-mono font-semibold">{usd(billingSummary.estimatedListCostUsd)}</dd></div>
+            <div className="flex justify-between gap-3"><dt className="text-ink-muted">Open or planned findings</dt><dd className="tabular font-mono font-semibold">{recommendations.active}</dd></div>
+            <div className="flex justify-between gap-3"><dt className="text-ink-muted">Alerts firing</dt><dd className="tabular font-mono font-semibold">{firing.length}</dd></div>
+          </dl>
+          <Button className="mt-5 w-full" loading={busy} onClick={generate} icon={<FileText aria-hidden />} data-testid="generate-report">
+            Generate report
+          </Button>
+          <p className="mt-3 flex items-start gap-2 text-xs leading-5 text-ink-muted">
+            <LockKeyhole className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+            Saved in this browser. Nothing is uploaded when you generate or share.
+          </p>
+        </aside>
+      </div>
+    </Page>
+  );
 }
