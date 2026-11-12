@@ -3,12 +3,24 @@
 import { useMemo } from "react";
 import { evaluateAlert, type AlertRule } from "@/lib/alerts";
 import { defaultBudget, monthEndProjection, readBudget } from "@/lib/budget";
+import { describeRange, resolveRange, type RangeChoice } from "@/lib/range";
 import { summarize } from "@/lib/recommendations";
 import { useHydrated } from "@/lib/use-hydrated";
-import { defaultAlertRules, savingsRecommendations } from "@/mocks/service";
-import { useAlertRules, useRecommendations } from "@/store/app";
+import { defaultAlertRules, queryUsage, savingsRecommendations } from "@/mocks/service";
+import { useAlertRules, useRange, useRecommendations } from "@/store/app";
 
 const none = {};
+const defaultChoice: RangeChoice = { preset: "mtd" };
+/** Alerts always look at the last 30 days. Queried once: the cache does not change while the app is open. */
+const recentUsage = queryUsage(resolveRange({ preset: "last-30" }));
+
+/** The chosen date range and the usage for it. Month to date until the page has hydrated. */
+export function useUsage() {
+  const hydrated = useHydrated();
+  const saved = useRange((s) => s.choice);
+  const choice = hydrated ? saved : defaultChoice;
+  return useMemo(() => describeRange(choice), [choice]);
+}
 
 /** Recommendation decisions. Empty until the page has hydrated, so server and client markup match. */
 export function useRecommendationStatuses() {
@@ -17,7 +29,7 @@ export function useRecommendationStatuses() {
   return hydrated ? statuses : (none as typeof statuses);
 }
 
-/** The alert rules with saved thresholds applied, each with its result on the sample data. */
+/** The alert rules with saved thresholds applied, each with its result over the last 30 days. */
 export function useAlerts() {
   const hydrated = useHydrated();
   const saved = useAlertRules((s) => s.overrides);
@@ -26,7 +38,7 @@ export function useAlerts() {
     () =>
       defaultAlertRules.map((base) => {
         const rule: AlertRule = { ...base, ...overrides[base.id] };
-        return { rule, result: evaluateAlert(rule) };
+        return { rule, result: evaluateAlert(rule, recentUsage) };
       }),
     [overrides],
   );
@@ -37,7 +49,7 @@ export function useRecommendationSummary() {
   return useMemo(() => summarize(savingsRecommendations, statuses), [statuses]);
 }
 
-/** The saved budget and the run-rate projection against it. */
+/** The saved budget and the run-rate projection against it. Always the current month. */
 export function useBudget() {
   const hydrated = useHydrated();
   const budget = hydrated ? readBudget() : defaultBudget;

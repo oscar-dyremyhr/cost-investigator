@@ -1,8 +1,75 @@
-import { Database, Hash, Layers3, Tags } from "lucide-react";
-import { productBreakdown, usageRows } from "@/mocks/service";
-const usd=(n:number)=>new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0}).format(n);
-const usdExact=(n:number)=>new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",minimumFractionDigits:2,maximumFractionDigits:2}).format(n);
-export default function BillingBreakdown(){return <main className="mx-auto max-w-6xl px-5 py-8 md:px-8"><p className="mt-8 flex items-center gap-2 text-xs font-bold uppercase tracking-[.15em] text-brand"><Database size={14}/> Billing system tables</p><h1 className="mt-2 font-heading text-4xl font-bold">Billing breakdown</h1><p className="mt-3 max-w-3xl leading-7 text-ink-muted">Explore what the billing records say: product origin, SKU, usage quantity, workspace, cloud, tags and an estimated list cost. No savings or workload-cause claims are inferred from these records alone.</p>
-<section className="card mt-8 overflow-hidden"><div className="flex flex-wrap items-center justify-between gap-3 bg-paper px-6 py-4"><div><h2 className="font-heading text-lg font-bold">By billing origin product</h2><p className="mt-1 text-xs text-ink-muted">`billing_origin_product` groups usage even when products share a SKU.</p></div><Layers3 className="text-ink-muted"/></div><div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-sm"><thead className="text-[11px] uppercase tracking-wide text-ink-muted"><tr><th className="px-6 py-3">Product</th><th className="px-4 py-3">Distinct SKUs</th><th className="px-4 py-3">Workspaces</th><th className="px-4 py-3 text-right">Usage</th><th className="px-6 py-3 text-right">Estimated list cost</th></tr></thead><tbody>{productBreakdown.map(p=><tr key={p.product} className="border-t border-line"><td className="px-6 py-4"><p className="font-semibold">{p.label}</p><p className="mono mt-1 text-[10px] text-ink-muted">{p.product}</p></td><td className="px-4 py-4">{p.skuCount}</td><td className="px-4 py-4">{p.workspaceCount}</td><td className="mono px-4 py-4 text-right text-xs">{new Intl.NumberFormat("en-US").format(p.usageQuantity)} <span className="text-ink-muted">{p.usageUnit}</span></td><td className="mono px-6 py-4 text-right font-semibold">{usd(p.estimatedListCostUsd)}</td></tr>)}</tbody><tfoot><tr className="border-t-2 border-line bg-paper"><td className="px-6 py-4 font-bold" colSpan={4}>Total estimated list cost</td><td className="mono px-6 py-4 text-right font-bold">{usd(productBreakdown.reduce((sum,p)=>sum+p.estimatedListCostUsd,0))}</td></tr></tfoot></table></div></section>
-<section className="card mt-6 overflow-hidden"><div className="flex items-center justify-between gap-3 p-6"><div><h2 className="font-heading text-lg font-bold">Aggregated usage rows</h2><p className="mt-1 text-sm text-ink-muted">Sample fields from `system.billing.usage` with calculated list-price estimates.</p></div><Hash className="text-ink-muted"/></div><div className="overflow-x-auto"><table className="w-full min-w-[740px] text-left text-sm"><thead className="bg-paper text-[11px] uppercase tracking-wide text-ink-muted"><tr><th className="px-6 py-3">Usage date</th><th className="px-4 py-3">Origin · SKU</th><th className="px-4 py-3">Workspace · cloud</th><th className="px-4 py-3 text-right">Quantity</th><th className="px-6 py-3 text-right">Estimated list cost</th></tr></thead><tbody>{usageRows.map((row,i)=><tr key={`${row.usageDate}-${row.skuName}-${i}`} className="border-t border-line"><td className="px-6 py-3 text-xs text-ink-muted">{row.usageDate}</td><td className="px-4 py-3"><p className="text-xs font-semibold">{row.billingOriginProduct}</p><p className="mono mt-1 max-w-[250px] truncate text-[10px] text-ink-muted">{row.skuName}</p></td><td className="px-4 py-3"><p className="mono text-[11px]">{row.workspaceId}</p><p className="mt-1 text-[10px] text-ink-muted">{row.cloud}</p></td><td className="mono px-4 py-3 text-right text-xs">{new Intl.NumberFormat("en-US").format(row.usageQuantity)} {row.usageUnit}</td><td className="mono px-6 py-3 text-right text-xs font-semibold">{usdExact(row.estimatedListCostUsd)}</td></tr>)}</tbody></table></div><div className="flex items-start gap-2 border-t border-line px-6 py-4 text-xs leading-5 text-ink-muted"><Tags size={14} className="mt-0.5 shrink-0"/> `custom_tags` can support cost allocation where values are populated. Missing tags remain unattributed.</div></section>
-<div className="mt-6 grid gap-4 md:grid-cols-3">{[{title:"Price lookup",text:"Join SKU, cloud, usage unit and the usage timestamp to the matching price validity window in system.billing.list_prices."},{title:"Corrections",text:"Retraction rows have negative usage and restatements contain corrected records. Sum signed quantities; do not filter to ORIGINAL only."},{title:"Resource metadata",text:"Job, cluster, warehouse and pipeline identifiers are conditional fields. Names and owner meanings can require joins to other system tables."}].map(card=><article key={card.title} className="rounded-2xl border border-line bg-paper-deep p-5"><h2 className="font-heading font-bold">{card.title}</h2><p className="mt-2 text-sm leading-6 text-ink-muted">{card.text}</p></article>)}</div><p className="mt-6 text-xs leading-5 text-ink-muted">List-price estimates can differ from invoiced spend because of negotiated discounts, credits, entitlements and taxes. Original usage records typically arrive within about 12 hours. <a href="https://docs.databricks.com/aws/en/admin/system-tables/billing" target="_blank" rel="noreferrer" className="font-semibold text-brand underline underline-offset-4">See the billing schema reference.</a></p></main>}
+"use client";
+
+import { Boxes, Database, Layers3, Tags } from "lucide-react";
+import { DataTable, StatTile, Term } from "@/design-system/components";
+import { change, num, usd, usdExact } from "@/lib/format";
+import { useUsage } from "@/lib/use-app-state";
+import { recordTypes } from "@/mocks/service";
+import { BarList, DailyBars, Page, PageHeader, SectionCard, SourceNote } from "./parts";
+import { RangePicker } from "./RangePicker";
+
+const notes = [
+  { title: "Price lookup", text: "Each usage row is matched to the list price that was valid at that time, by SKU and cloud." },
+  { title: "Corrections", text: "A correction adds a negative retraction row and a restatement row. Signed quantities are summed, so both are included." },
+  { title: "Shared SKUs", text: "Several products bill on one SKU. The billing product keeps them apart, so this table groups by product, not SKU." },
+];
+
+export default function BillingBreakdown() {
+  const { usage, label, previousUsd, previousLabel } = useUsage();
+  const delta = previousUsd === null ? undefined : change(usage.totalUsd, previousUsd);
+  const perDay = usage.days ? usage.totalUsd / usage.days : 0;
+
+  return (
+    <Page>
+      <PageHeader eyebrow={`Billing breakdown · ${label}`} title="What the billing records say" body="List cost and usage by product and by workspace for the dates you pick, straight from the billing tables." actions={<RangePicker />} />
+
+      <section aria-label="Summary" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatTile label="Estimated list cost" value={usd(usage.totalUsd)} delta={delta} sub={delta === undefined ? "No earlier data cached to compare with" : `vs ${previousLabel}`} foot={`${usd(perDay)} a day on average`} icon={<Database aria-hidden />} />
+        <StatTile label="Usage" value={num(usage.dbus)} sub="DBUs · DBU rows only" foot={`${num(usage.records)} usage records`} icon={<Layers3 aria-hidden />} />
+        <StatTile label="Workspaces" value={String(usage.workspaceCount)} sub="Distinct workspace IDs" foot={`${usage.productCount} billing products`} icon={<Boxes aria-hidden />} />
+        <StatTile label="Tagged spend" value={`${usage.taggedPercent.toFixed(0)}%`} sub={`${usd(usage.untaggedUsd)} has no custom tag`} foot="From the custom_tags column" icon={<Tags aria-hidden />} />
+      </section>
+
+      <SectionCard title="Daily list cost" body="One bar per usage date, in US dollars.">
+        <DailyBars data={usage.daily.map((d) => ({ label: d.label, value: d.listCostUsd }))} label="List cost" format={usd} axisFormat={(v) => `$${(v / 1000).toFixed(0)}k`} />
+      </SectionCard>
+
+      <SectionCard title="By billing product" body="Grouped by billing_origin_product." flush>
+        <div className="px-5 pb-5 md:px-6 md:pb-6">
+          <DataTable
+            caption="By billing product"
+            rows={usage.products}
+            rowKey={(p) => p.product}
+            columns={[
+              { key: "p", header: "Product", render: (p) => (<><p className="font-semibold">{p.label}</p><p className="mt-0.5 font-mono text-[11px] text-ink-muted">{p.product} · {p.skuCount} SKUs</p></>) },
+              { key: "w", header: "Workspaces", align: "right", render: (p) => <span className="tabular font-mono">{p.workspaceCount}</span> },
+              { key: "u", header: "Usage", align: "right", render: (p) => <span className="tabular font-mono">{num(p.usageQuantity)} {p.usageUnit}</span> },
+              { key: "s", header: "Share", align: "right", render: (p) => <span className="tabular font-mono">{p.share}%</span> },
+              { key: "c", header: "Est. list cost", align: "right", render: (p) => <span className="tabular font-mono font-semibold">{usdExact(p.estimatedListCostUsd)}</span> },
+            ]}
+          />
+        </div>
+      </SectionCard>
+
+      <div className="grid gap-5 xl:grid-cols-2">
+        <SectionCard title="By workspace" body="Each workspace’s share of list cost in the range.">
+          <BarList format={usdExact} rows={usage.workspaces.map((w) => ({ key: w.workspaceId, label: w.name, sub: `${w.workspaceId} · ${w.region} · ${w.sharePercent.toFixed(0)}%`, value: w.estimatedListCostUsd }))} />
+        </SectionCard>
+        <SectionCard title="How to read this" body={`Cache last refreshed ${recordTypes.latestIngestion}.`}>
+          <ul className="space-y-4 text-sm">
+            {notes.map((n) => (
+              <li key={n.title}>
+                <p className="font-semibold">{n.title}</p>
+                <p className="mt-0.5 text-ink-muted">{n.text}</p>
+              </li>
+            ))}
+          </ul>
+        </SectionCard>
+      </div>
+
+      <SourceNote tables={["system.billing.usage", "system.billing.list_prices"]} href="https://docs.databricks.com/aws/en/admin/system-tables/billing" linkLabel="Billing table reference">
+        Figures are estimates at <Term k="listPrice">list price</Term>. Discounts, credits and taxes can make the invoice differ. Usage records usually arrive within about 12 hours.
+      </SourceNote>
+    </Page>
+  );
+}

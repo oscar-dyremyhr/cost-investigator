@@ -175,10 +175,10 @@ WHERE u.usage_date >= '2026-11-01'
 GROUP BY 1`,
       columns: ["has_tags", "list_cost (USD)"],
       rows: [
-        ["true", "40,669"],
-        ["false", "11,471"],
+        ["true", "40,637"],
+        ["false", "11,503"],
       ],
-      reading: "11,471 of 52,140 is 22%. This does not save money by itself, so no opportunity range is shown.",
+      reading: "11,503 of 52,140 is 22%. This does not save money by itself, so no opportunity range is shown.",
     },
   },
 ];

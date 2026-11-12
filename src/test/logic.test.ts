@@ -1,26 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { evaluateAlert, latestDaySpike } from "@/lib/alerts";
+import { evaluateAlert } from "@/lib/alerts";
 import { monthEndProjection } from "@/lib/budget";
 import { sortRecommendations, summarize } from "@/lib/recommendations";
 import { serverlessSpend } from "@/lib/serverless";
-import { billingSummary, dailyListCost, productBreakdown, savingsRecommendations, servingEndpoints, topJobs } from "@/mocks/service";
+import { queryUsage, savingsRecommendations } from "@/mocks/service";
 
-describe("sample data adds up", () => {
-  it("daily and product costs sum to the period total", () => {
-    expect(dailyListCost.reduce((s, d) => s + d.listCostUsd, 0)).toBe(billingSummary.estimatedListCostUsd);
-    expect(productBreakdown.reduce((s, p) => s + p.estimatedListCostUsd, 0)).toBe(billingSummary.estimatedListCostUsd);
-    expect(productBreakdown).toHaveLength(billingSummary.productCount);
-  });
-  it("attributed jobs and endpoints stay within their product totals", () => {
-    const cost = (product: string) => productBreakdown.find((p) => p.product === product)!.estimatedListCostUsd;
-    expect(topJobs.reduce((s, j) => s + j.estimatedListCostUsd, 0)).toBeLessThanOrEqual(cost("JOBS"));
-    expect(servingEndpoints.reduce((s, e) => s + e.estimatedListCostUsd, 0)).toBe(cost("MODEL_SERVING"));
-  });
-});
+const mtd = queryUsage({ from: "2026-11-01", to: "2026-11-11" });
+const last30 = queryUsage({ from: "2026-10-13", to: "2026-11-11" });
 
 describe("serverless spend", () => {
   it("groups add up to the same total", () => {
-    const s = serverlessSpend();
+    const s = serverlessSpend(mtd);
     const sum = (rows: { usd: number }[]) => rows.reduce((t, r) => t + r.usd, 0);
     expect(s.totalUsd).toBeCloseTo(9900, 2);
     expect(sum(s.byWorkspace)).toBeCloseTo(s.totalUsd, 2);
@@ -30,21 +20,25 @@ describe("serverless spend", () => {
 });
 
 describe("alerts", () => {
-  it("measures the latest day against the trailing seven days", () => {
-    expect(latestDaySpike()).toBeCloseTo(36.8, 1);
-    expect(latestDaySpike([{ listCostUsd: 100 }, { listCostUsd: 150 }])).toBe(50);
-    expect(latestDaySpike([{ listCostUsd: 100 }])).toBe(0);
+  it("look at the last 30 days and trigger only above the threshold", () => {
+    const top = serverlessSpend(last30);
+    const check = (kind: Parameters<typeof evaluateAlert>[0]["kind"], threshold: number) => evaluateAlert({ kind, threshold }, last30);
+    expect(check("workspace_serverless", top.byWorkspace[0].usd - 1).matches).toHaveLength(1);
+    expect(check("workspace_serverless", top.byWorkspace[0].usd + 1).triggered).toBe(false);
+    expect(check("user_serverless", top.byUser[1].usd - 1).matches).toHaveLength(2);
+    expect(check("job_serverless", 1_000_000).triggered).toBe(false);
+    expect(check("job_serverless", 0).matches).toHaveLength(4);
+    expect(check("daily_spike", 25).triggered).toBe(true);
+    expect(check("daily_spike", 40).triggered).toBe(false);
+    expect(check("tag_coverage", 85).triggered).toBe(true);
+    expect(check("tag_coverage", 70).triggered).toBe(false);
+    expect(check("untagged_endpoints", 0).matches).toHaveLength(2);
   });
-  it("triggers only when something is over the threshold", () => {
-    expect(evaluateAlert({ kind: "workspace_serverless", threshold: 5000 }).matches).toHaveLength(1);
-    expect(evaluateAlert({ kind: "user_serverless", threshold: 3000 }).matches).toHaveLength(2);
-    expect(evaluateAlert({ kind: "job_serverless", threshold: 4000 }).triggered).toBe(false);
-    expect(evaluateAlert({ kind: "job_serverless", threshold: 2000 }).matches).toHaveLength(2);
-    expect(evaluateAlert({ kind: "daily_spike", threshold: 25 }).triggered).toBe(true);
-    expect(evaluateAlert({ kind: "daily_spike", threshold: 40 }).triggered).toBe(false);
-    expect(evaluateAlert({ kind: "tag_coverage", threshold: 85 }).triggered).toBe(true);
-    expect(evaluateAlert({ kind: "tag_coverage", threshold: 70 }).triggered).toBe(false);
-    expect(evaluateAlert({ kind: "untagged_endpoints", threshold: 0 }).matches).toHaveLength(2);
+  it("the default thresholds give a mix of firing and quiet rules", () => {
+    const top = serverlessSpend(last30);
+    expect(top.byWorkspace[0].usd).toBeGreaterThan(12000);
+    expect(top.byUser[0].usd).toBeGreaterThan(8000);
+    expect(top.byJob[0].usd).toBeLessThan(10000);
   });
 });
 

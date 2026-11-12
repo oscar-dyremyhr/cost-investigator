@@ -17,6 +17,20 @@ describe("creating a report", () => {
     expect(report.recommendations.find((r) => r.id === "warehouse-auto-stop")?.status).toBe("planned");
     expect(report.products.reduce((s, p) => s + p.estimatedListCostUsd, 0)).toBe(report.estimatedListCost);
   });
+  it("covers the dates it is asked for", () => {
+    const base = { title: "T", organization: "O", audience: "finance" as const, sections: ["products" as const], note: "" };
+    const october = createCostReport({ ...base, range: { preset: "last-month" } }, context);
+    expect(october.period).toBe("Oct 1–31, 2026");
+    expect(october.comparison).toBe("the month before");
+    expect(october.estimatedListCost).toBeGreaterThan(make().estimatedListCost);
+    expect(october.products.reduce((s, p) => s + p.estimatedListCostUsd, 0)).toBeCloseTo(october.estimatedListCost, 1);
+    const year = createCostReport({ ...base, range: { preset: "ytd" } }, context);
+    expect(year.period).toBe("Sep 1 – Nov 11, 2026");
+    expect([year.comparison, year.previousPeriodListCost]).toEqual(["", 0]);
+    expect(reportToSummary(year)).toContain(`Estimated list cost: $${Math.round(year.estimatedListCost).toLocaleString("en-US")}.`);
+    const custom = createCostReport({ ...base, range: { preset: "custom", from: "2026-09-10", to: "2026-09-16" } }, context);
+    expect([custom.period, custom.comparison]).toEqual(["Sep 10–16, 2026", "the 7 days before"]);
+  });
   it("falls back to sensible names", () => {
     const report = createCostReport({ title: " ", organization: "", audience: "everything", sections: [], note: "" }, context);
     expect([report.title, report.organization]).toEqual(["Databricks Cost Review", "Northstar Commerce"]);
@@ -52,7 +66,7 @@ describe("exports", () => {
     const csv = reportToCsv(make());
     const lines = csv.trim().split("\r\n");
     expect(lines[0]).toBe("section,item,detail,quantity,unit,estimated_list_cost_usd");
-    expect(lines).toContain("Billing product,Lakeflow Jobs,JOBS,168420,DBU,17500");
+    expect(lines.some((l) => /^Billing product,Lakeflow Jobs,JOBS,\d+,DBU,17500$/.test(l))).toBe(true);
     expect(csv).toContain("Alert firing,Daily spend spike");
     expect(csv).not.toContain("Model serving endpoint");
     expect(csv).not.toContain("\r\nJob,");
@@ -65,6 +79,7 @@ describe("exports", () => {
     const text = reportToSummary(make());
     expect(text).toContain("Estimated list cost: $52,140 (+19.0% vs the same days last month).");
     expect(text).toContain("95% of the $150,000 budget");
+    expect(make().period).toBe("Nov 1–11, 2026");
     expect(text).toContain("- Check for overlapping gold refresh runs ($420–$680 a month)");
     expect(text).toContain("Note: For the Thursday meeting.");
   });

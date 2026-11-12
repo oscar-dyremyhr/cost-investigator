@@ -2,7 +2,8 @@ import { reportSections, type ReportAudienceId, type ReportSectionId } from "@/c
 import type { RecommendationStatus } from "@/lib/recommendations";
 import { statusOf } from "@/lib/recommendations";
 import { serverlessSpend } from "@/lib/serverless";
-import { billingSummary, productBreakdown, savingsRecommendations, servingEndpoints, topJobs } from "@/mocks/service";
+import { describeRange, type RangeChoice } from "@/lib/range";
+import { savingsRecommendations } from "@/mocks/service";
 
 const STORAGE_KEY = "cost-investigator-reports-v1";
 
@@ -17,6 +18,8 @@ export type CostReport = {
   sections: ReportSectionId[];
   note: string;
   period: string;
+  /** What the change figure is measured against, for example "the same days last month". Empty when nothing older is cached. */
+  comparison: string;
   currency: string;
   createdAt: string;
   estimatedListCost: number;
@@ -34,7 +37,7 @@ export type CostReport = {
   isSample: true;
 };
 
-export type ReportInput = { title: string; organization: string; audience: ReportAudienceId; sections: ReportSectionId[]; note: string };
+export type ReportInput = { title: string; organization: string; audience: ReportAudienceId; sections: ReportSectionId[]; note: string; range?: RangeChoice };
 /** The live app state a report freezes: decisions, firing alerts and the budget. */
 export type ReportContext = {
   statuses: Record<string, RecommendationStatus>;
@@ -48,7 +51,9 @@ function makeId(prefix: string) {
 }
 
 export function createCostReport(input: ReportInput, context: ReportContext, now = new Date()): CostReport {
-  const serverless = serverlessSpend();
+  // The report queries the cached data for its own date range, independent of what the pages show.
+  const { usage, label, previousUsd, previousLabel } = describeRange(input.range ?? { preset: "mtd" });
+  const serverless = serverlessSpend(usage);
   return {
     version: 2,
     id: makeId("cost-report"),
@@ -59,19 +64,20 @@ export function createCostReport(input: ReportInput, context: ReportContext, now
     // Keep the document order fixed, whatever order the boxes were ticked in.
     sections: sectionIds.filter((id) => input.sections.includes(id)),
     note: input.note.trim(),
-    period: billingSummary.periodLabel,
+    period: label,
+    comparison: previousUsd === null ? "" : previousLabel,
     currency: "USD",
     createdAt: now.toISOString(),
-    estimatedListCost: billingSummary.estimatedListCostUsd,
-    previousPeriodListCost: billingSummary.previousComparablePeriodUsd,
-    dbus: billingSummary.dbuQuantity,
-    workspaces: billingSummary.workspaceCount,
-    records: billingSummary.aggregatedUsageRecords,
+    estimatedListCost: usage.totalUsd,
+    previousPeriodListCost: previousUsd ?? 0,
+    dbus: usage.dbus,
+    workspaces: usage.workspaceCount,
+    records: usage.records,
     budget: context.budget,
-    products: productBreakdown.map(({ product, label, skuCount, usageQuantity, usageUnit, estimatedListCostUsd, share }) => ({ product, label, skuCount, usageQuantity, usageUnit, estimatedListCostUsd, share })),
-    jobs: topJobs.map(({ jobName, jobId, workspaceId, runs, lastSeen, estimatedListCostUsd, failedRuns, failedCostUsd }) => ({ jobName, jobId, workspaceId, runs, lastSeen, estimatedListCostUsd, failedRuns, failedCostUsd })),
-    serverless: { totalUsd: serverless.totalUsd, jobsUsd: serverless.jobsUsd, notebooksUsd: serverless.notebooksUsd, byUser: serverless.byUser.map(({ label, usd }) => ({ label, usd })) },
-    endpoints: servingEndpoints.map(({ endpointName, servingType, businessUnit, dbus, estimatedListCostUsd }) => ({ endpointName, servingType, businessUnit, dbus, estimatedListCostUsd })),
+    products: usage.products.map(({ product, label: name, skuCount, usageQuantity, usageUnit, estimatedListCostUsd, share }) => ({ product, label: name, skuCount, usageQuantity, usageUnit, estimatedListCostUsd, share })),
+    jobs: usage.jobs.map(({ jobName, jobId, workspaceId, runs, lastSeen, estimatedListCostUsd, failedRuns, failedCostUsd }) => ({ jobName, jobId, workspaceId, runs, lastSeen, estimatedListCostUsd, failedRuns, failedCostUsd })),
+    serverless: { totalUsd: serverless.totalUsd, jobsUsd: serverless.jobsUsd, notebooksUsd: serverless.notebooksUsd, byUser: serverless.byUser.map(({ label: who, usd }) => ({ label: who, usd })) },
+    endpoints: usage.endpoints.map(({ endpointName, servingType, businessUnit, dbus, estimatedListCostUsd }) => ({ endpointName, servingType, businessUnit, dbus, estimatedListCostUsd })),
     alerts: context.alerts,
     recommendations: savingsRecommendations
       .map(({ id, title, category, jobName, evidence, action, opportunityLowUsd, opportunityHighUsd }) => ({ id, title, category, jobName, evidence, action, opportunityLowUsd, opportunityHighUsd, status: statusOf(context.statuses, id) }))
@@ -108,6 +114,7 @@ export function normalizeReport(raw: unknown): CostReport | null {
     sections,
     note: str(raw.note),
     period: str(raw.period),
+    comparison: typeof raw.comparison === "string" ? str(raw.comparison) : "the same days last month",
     currency: "USD",
     createdAt: created.toISOString(),
     estimatedListCost: numOr(raw.estimatedListCost),
@@ -202,7 +209,7 @@ function csvCell(value: string | number) {
 export function reportToCsv(report: CostReport) {
   const rows: (string | number)[][] = [["section", "item", "detail", "quantity", "unit", "estimated_list_cost_usd"]];
   rows.push(["Summary", report.organization, report.period, report.dbus, "DBU", report.estimatedListCost]);
-  rows.push(["Summary", "Previous comparable period", "", "", "", report.previousPeriodListCost]);
+  if (report.comparison && report.previousPeriodListCost) rows.push(["Summary", "Compared with", report.comparison, "", "", report.previousPeriodListCost]);
   if (has(report, "products")) for (const p of report.products) rows.push(["Billing product", p.label, p.product, p.usageQuantity, p.usageUnit, p.estimatedListCostUsd]);
   if (has(report, "jobs")) {
     for (const j of report.jobs) {
@@ -214,7 +221,7 @@ export function reportToCsv(report: CostReport) {
   if (has(report, "serving")) for (const e of report.endpoints) rows.push(["Model serving endpoint", e.endpointName, `${e.servingType}${e.businessUnit ? ` · ${e.businessUnit}` : " · no tag"}`, e.dbus, "DBU", e.estimatedListCostUsd]);
   if (has(report, "budget")) {
     rows.push(["Budget", "Monthly budget", `alert at ${report.budget.alertAt}%`, "", "", report.budget.amount]);
-    rows.push(["Budget", "Projected month end", "run rate", "", "", Math.round(report.budget.projection)]);
+    rows.push(["Budget", "Projected end of current month", "run rate", "", "", Math.round(report.budget.projection)]);
     for (const a of report.alerts) rows.push(["Alert firing", a.name, a.detail, "", "", ""]);
   }
   if (has(report, "recommendations")) for (const r of report.recommendations) rows.push(["Recommendation", r.title, `${r.category} · ${r.jobName} · ${r.status}`, "", "", `${r.opportunityLowUsd}-${r.opportunityHighUsd}`]);
@@ -227,9 +234,9 @@ export function reportToSummary(report: CostReport) {
   const lines = [
     `${report.title} — ${report.organization}, ${report.period}`,
     "",
-    `Estimated list cost: ${money(report.estimatedListCost)} (${change >= 0 ? "+" : ""}${change.toFixed(1)}% vs the same days last month).`,
+    `Estimated list cost: ${money(report.estimatedListCost)}${report.comparison && report.previousPeriodListCost ? ` (${change >= 0 ? "+" : ""}${change.toFixed(1)}% vs ${report.comparison})` : ""}.`,
   ];
-  if (report.budget.amount) lines.push(`Projected month end: ${money(report.budget.projection)}, ${Math.round((report.budget.projection / report.budget.amount) * 100)}% of the ${money(report.budget.amount)} budget.`);
+  if (report.budget.amount) lines.push(`Projected end of the current month: ${money(report.budget.projection)}, ${Math.round((report.budget.projection / report.budget.amount) * 100)}% of the ${money(report.budget.amount)} budget.`);
   if (has(report, "products") && report.products.length) {
     lines.push("", "Largest products:");
     for (const p of report.products.slice(0, 3)) lines.push(`- ${p.label}: ${money(p.estimatedListCostUsd)} (${p.share}%)`);

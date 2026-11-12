@@ -3,12 +3,16 @@
 import { Bot, Rocket, Tags } from "lucide-react";
 import { Badge, DataTable, StatTile, StatusPill } from "@/design-system/components";
 import { num, usd } from "@/lib/format";
-import { servingDailyDbus, servingEndpoints } from "@/mocks/service";
-import { BarList, DailyBars, Page, PageHeader, SampleBadge, SectionCard, SourceNote } from "./parts";
+import { useUsage } from "@/lib/use-app-state";
+import { BarList, DailyBars, Page, PageHeader, SectionCard, SourceNote } from "./parts";
+import { RangePicker } from "./RangePicker";
 
 const typeLabels: Record<string, string> = { MODEL: "CPU model", GPU_MODEL: "GPU model", FOUNDATION_MODEL: "Foundation model", FEATURE: "Feature serving" };
 
 export default function ModelServing() {
+  const { usage } = useUsage();
+  const servingEndpoints = usage.endpoints;
+  const servingDailyDbus = usage.servingDaily;
   const totalUsd = servingEndpoints.reduce((s, e) => s + e.estimatedListCostUsd, 0);
   const totalDbus = servingEndpoints.reduce((s, e) => s + e.dbus, 0);
   const launchDbus = servingEndpoints.reduce((s, e) => s + e.launchDbus, 0);
@@ -22,12 +26,12 @@ export default function ModelServing() {
 
   return (
     <Page>
-      <PageHeader eyebrow="Model serving" title="What each endpoint costs" body="DBUs and list cost per serving endpoint, by type of serving and by the tag that says who owns it." actions={<SampleBadge />} />
+      <PageHeader eyebrow="Model serving" title="What each endpoint costs" body="DBUs and list cost per serving endpoint, by type of serving and by the tag that says who owns it." actions={<RangePicker />} />
 
       <section aria-label="Summary" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile label="Model serving list cost" value={usd(totalUsd)} sub={`${num(totalDbus)} DBUs`} foot="Product MODEL_SERVING" icon={<Bot aria-hidden />} />
         <StatTile label="Endpoints" value={String(servingEndpoints.length)} sub={`${servingEndpoints.filter((e) => e.batch).length} used for batch inference`} foot="From usage_metadata.endpoint_name" />
-        <StatTile label="Start-up DBUs" value={num(launchDbus)} sub={`${((launchDbus / totalDbus) * 100).toFixed(1)}% of serving DBUs`} foot="Starting again after scaling to zero" icon={<Rocket aria-hidden />} />
+        <StatTile label="Start-up DBUs" value={num(launchDbus)} sub={`${(totalDbus ? (launchDbus / totalDbus) * 100 : 0).toFixed(1)}% of serving DBUs`} foot="Starting again after scaling to zero" icon={<Rocket aria-hidden />} />
         <StatTile label="Endpoints without a tag" value={String(untagged.length)} sub={`${usd(untagged.reduce((s, e) => s + e.estimatedListCostUsd, 0))} with no owner`} foot="Tag key: business_unit" icon={<Tags aria-hidden />} />
       </section>
 

@@ -10,19 +10,18 @@ export {
   tagCoverage,
   topJobs,
   usageRows,
-  usageTrend,
 } from "./fixtures/cost-data";
 export { savingsRecommendations } from "./fixtures/recommendations";
 export type { Recommendation } from "./fixtures/recommendations";
 export {
   defaultAlertRules,
   listPrices,
-  otherServerlessJobsUsd,
-  otherServerlessJobsWorkspaceId,
-  performanceTargets,
   recordTypes,
-  servingDailyDbus,
   servingEndpoints,
   serverlessNotebooks,
   topJobRuns,
+  workspaces,
 } from "./fixtures/workloads";
+export { cacheInfo, queryUsage, totalFor } from "./query";
+export type { Usage } from "./query";
+export type { CostCache, CostDataSource, DateRange } from "@/data/contract";

@@ -5,9 +5,9 @@ import { ArrowRight, NotebookText, Users, Zap } from "lucide-react";
 import { DataTable, StatTile, StatusPill } from "@/design-system/components";
 import { num, usd, usdExact } from "@/lib/format";
 import { serverlessJobs, serverlessSpend } from "@/lib/serverless";
-import { useAlerts } from "@/lib/use-app-state";
-import { billingSummary, performanceTargets, serverlessNotebooks } from "@/mocks/service";
-import { BarList, Page, PageHeader, SampleBadge, SectionCard, SourceNote } from "./parts";
+import { useAlerts, useUsage } from "@/lib/use-app-state";
+import { BarList, Page, PageHeader, SectionCard, SourceNote } from "./parts";
+import { RangePicker } from "./RangePicker";
 
 const featureRows = [
   ["Data quality monitoring", "LAKEHOUSE_MONITORING"],
@@ -19,9 +19,12 @@ const featureRows = [
 ];
 
 export default function Serverless() {
-  const spend = serverlessSpend();
-  const jobs = serverlessJobs();
-  const users = spend.byUser.filter((u) => u.key !== "Other identities");
+  const { usage } = useUsage();
+  const spend = serverlessSpend(usage);
+  const jobs = serverlessJobs(usage);
+  const serverlessNotebooks = usage.notebooks;
+  const performanceTargets = usage.performanceTargets;
+  const users = spend.byUser;
   const rules = useAlerts().filter((a) => a.rule.kind.endsWith("_serverless"));
 
   return (
@@ -30,14 +33,14 @@ export default function Serverless() {
         eyebrow="Serverless"
         title="Serverless jobs and notebooks"
         body="Serverless has no cluster to look at, so cost is traced to the person, the job or the notebook that ran."
-        actions={<SampleBadge />}
+        actions={<RangePicker />}
       />
 
       <section aria-label="Summary" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatTile label="Serverless list cost" value={usd(spend.totalUsd)} sub={`${((spend.totalUsd / billingSummary.estimatedListCostUsd) * 100).toFixed(0)}% of all spend`} foot="Jobs and notebooks" icon={<Zap aria-hidden />} />
-        <StatTile label="Serverless jobs" value={usdExact(spend.jobsUsd)} sub={`${jobs.length} named jobs and others`} foot="SKU contains JOBS_SERVERLESS_COMPUTE" />
+        <StatTile label="Serverless list cost" value={usd(spend.totalUsd)} sub={`${(usage.totalUsd ? (spend.totalUsd / usage.totalUsd) * 100 : 0).toFixed(0)}% of all spend`} foot="Jobs and notebooks" icon={<Zap aria-hidden />} />
+        <StatTile label="Serverless jobs" value={usdExact(spend.jobsUsd)} sub={`${jobs.length} jobs`} foot="SKU contains JOBS_SERVERLESS_COMPUTE" />
         <StatTile label="Serverless notebooks" value={usd(spend.notebooksUsd)} sub={`${serverlessNotebooks.length} notebooks`} foot="Product INTERACTIVE, serverless" icon={<NotebookText aria-hidden />} />
-        <StatTile label="People and service accounts" value={String(users.length)} sub={`Largest: ${usd(users[0].usd)}`} foot="From identity_metadata.run_as" icon={<Users aria-hidden />} />
+        <StatTile label="People and service accounts" value={String(users.length)} sub={`Largest: ${usd(users[0]?.usd ?? 0)}`} foot="From identity_metadata.run_as" icon={<Users aria-hidden />} />
       </section>
 
       <div className="grid gap-5 xl:grid-cols-2">
@@ -48,7 +51,7 @@ export default function Serverless() {
           <BarList format={usdExact} rows={spend.byWorkspace.map((w) => ({ key: w.key, label: <span className="font-mono">{w.key}</span>, value: w.usd }))} />
           <div className="mt-5 border-t border-line pt-4">
             <div className="flex items-center justify-between gap-3">
-              <h3 className="text-sm font-bold">Serverless alert rules</h3>
+              <h3 className="text-sm font-bold">Serverless alert rules · last 30 days</h3>
               <Link href="/alerts" className="inline-flex items-center gap-1 text-sm font-semibold text-brand">Manage <ArrowRight className="size-3.5" aria-hidden /></Link>
             </div>
             <ul className="mt-3 space-y-2">

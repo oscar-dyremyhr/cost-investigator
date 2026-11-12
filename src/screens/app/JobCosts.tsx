@@ -5,16 +5,18 @@ import Link from "next/link";
 import { ArrowRight, BriefcaseBusiness, CircleX, RotateCcw } from "lucide-react";
 import { Badge, DataTable, DeltaPill, Segmented, StatTile, StatusPill, Term } from "@/design-system/components";
 import { change, usd, usdExact } from "@/lib/format";
-import { productBreakdown, savingsRecommendations, topJobRuns, topJobs } from "@/mocks/service";
-import { Page, PageHeader, SampleBadge, SectionCard, SourceNote } from "./parts";
+import { useUsage } from "@/lib/use-app-state";
+import { savingsRecommendations, type Usage } from "@/mocks/service";
+import { Page, PageHeader, SectionCard, SourceNote } from "./parts";
+import { RangePicker } from "./RangePicker";
 
 type View = "jobs" | "runs" | "trend" | "failed" | "retries";
-type Job = (typeof topJobs)[number];
+type Job = Usage["jobs"][number];
 
 const views: { value: View; label: string; title: string; body: string }[] = [
   { value: "jobs", label: "Jobs", title: "Most expensive jobs", body: "List cost per job, with run count and who it runs as." },
   { value: "runs", label: "Runs", title: "Most expensive runs", body: "The single runs that cost the most, grouped by job run ID." },
-  { value: "trend", label: "Trend", title: "Spend trend", body: "The last 7 days against the 7 days before, largest growth first." },
+  { value: "trend", label: "Trend", title: "Spend trend", body: "The last 7 days of the range against the 7 days before, largest growth first." },
   { value: "failed", label: "Failed runs", title: "Cost of failed runs", body: "Runs that ended in ERROR, FAILED or TIMED_OUT, and what they cost." },
   { value: "retries", label: "Retries", title: "Repairs and retries", body: "Runs that needed more than one attempt, and the cost of the unsuccessful attempts." },
 ];
@@ -29,14 +31,17 @@ const mono = (v: string | number) => <span className="tabular font-mono">{v}</sp
 
 export default function JobCosts() {
   const [view, setView] = useState<View>("jobs");
+  const { usage } = useUsage();
+  const topJobs = usage.jobs;
+  const topJobRuns = usage.jobRuns;
   const current = views.find((v) => v.value === view)!;
   const total = topJobs.reduce((s, j) => s + j.estimatedListCostUsd, 0);
-  const jobsProduct = productBreakdown.find((p) => p.product === "JOBS")!.estimatedListCostUsd;
+  const jobsProduct = usage.products.find((p) => p.product === "JOBS")?.estimatedListCostUsd ?? 0;
   const failedRuns = topJobs.reduce((s, j) => s + j.failedRuns, 0);
   const failedCost = topJobs.reduce((s, j) => s + j.failedCostUsd, 0);
   const repairCost = topJobs.reduce((s, j) => s + j.repairCostUsd, 0);
   const runs = topJobs.reduce((s, j) => s + j.runs, 0);
-  const byTrend = [...topJobs].sort((a, b) => b.last7Usd - b.prev7Usd - (a.last7Usd - a.prev7Usd));
+  const byTrend = [...topJobs].sort((a, b) => b.last7Usd - (b.prev7Usd ?? 0) - (a.last7Usd - (a.prev7Usd ?? 0)));
   const related = savingsRecommendations.filter((r) => topJobs.some((j) => j.jobName === r.jobName));
 
   return (
@@ -45,12 +50,12 @@ export default function JobCosts() {
         eyebrow="Jobs"
         title="Which jobs drive spend"
         body="Cost per job and per run, what is growing, and what failed runs and retries cost you."
-        actions={<SampleBadge />}
+        actions={<RangePicker />}
       />
 
       <section aria-label="Summary" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatTile label="Attributed to jobs shown" value={usdExact(total)} sub={`of ${usd(jobsProduct)} billed as Jobs`} foot={`${topJobs.length} jobs · ${runs} runs`} icon={<BriefcaseBusiness aria-hidden />} />
-        <StatTile label="Failed runs" value={String(failedRuns)} sub={`${((failedRuns / runs) * 100).toFixed(1)}% of runs`} foot="ERROR, FAILED or TIMED_OUT" icon={<CircleX aria-hidden />} />
+        <StatTile label="Traced to a job" value={usdExact(total)} sub={`of ${usd(jobsProduct)} billed as Jobs`} foot={`${topJobs.length} jobs · ${runs} runs`} icon={<BriefcaseBusiness aria-hidden />} />
+        <StatTile label="Failed runs" value={String(failedRuns)} sub={`${(runs ? (failedRuns / runs) * 100 : 0).toFixed(1)}% of runs`} foot="ERROR, FAILED or TIMED_OUT" icon={<CircleX aria-hidden />} />
         <StatTile label="Cost of failed runs" value={usdExact(failedCost)} sub="List cost of usage on failed runs" foot="Work that produced no result" />
         <StatTile label="Cost of repairs" value={usdExact(repairCost)} sub="Unsuccessful attempts before a success" foot="A subset of failed-run cost" icon={<RotateCcw aria-hidden />} />
       </section>
@@ -75,6 +80,7 @@ export default function JobCosts() {
           {view === "runs" ? (
             <DataTable
               caption={current.title}
+              empty={<p className="rounded-card border border-dashed border-line-strong p-6 text-center text-sm text-ink-muted">No sample runs fall inside this date range.</p>}
               rows={topJobRuns}
               rowKey={(r) => r.runId}
               columns={[
@@ -94,10 +100,10 @@ export default function JobCosts() {
               rowKey={(j) => j.jobId}
               columns={[
                 { key: "job", header: "Job", render: jobCell },
-                { key: "prev", header: "Oct 29 – Nov 4", align: "right", render: (j) => mono(usd(j.prev7Usd)) },
-                { key: "last", header: "Nov 5 – 11", align: "right", render: (j) => mono(usd(j.last7Usd)) },
-                { key: "growth", header: "Growth", align: "right", render: (j) => mono(`${j.last7Usd >= j.prev7Usd ? "+" : "−"}${usd(Math.abs(j.last7Usd - j.prev7Usd))}`) },
-                { key: "pct", header: "Change", align: "right", render: (j) => <DeltaPill percent={change(j.last7Usd, j.prev7Usd)} /> },
+                { key: "prev", header: usage.trendWindows.prev7 ?? "Week before", align: "right", render: (j) => mono(j.prev7Usd === null ? "–" : usd(j.prev7Usd)) },
+                { key: "last", header: usage.trendWindows.last7, align: "right", render: (j) => mono(usd(j.last7Usd)) },
+                { key: "growth", header: "Growth", align: "right", render: (j) => mono(j.prev7Usd === null ? "–" : `${j.last7Usd >= j.prev7Usd ? "+" : "−"}${usd(Math.abs(j.last7Usd - j.prev7Usd))}`) },
+                { key: "pct", header: "Change", align: "right", render: (j) => (j.prev7Usd === null ? <span className="text-xs text-ink-muted">Not cached</span> : <DeltaPill percent={change(j.last7Usd, j.prev7Usd)} />) },
               ]}
             />
           ) : null}
@@ -110,7 +116,7 @@ export default function JobCosts() {
                 { key: "job", header: "Job", render: jobCell },
                 { key: "runs", header: "Runs", align: "right", render: (j) => mono(j.runs) },
                 { key: "failed", header: "Failed", align: "right", render: (j) => mono(j.failedRuns) },
-                { key: "ratio", header: "Success", align: "right", render: (j) => mono(`${(((j.runs - j.failedRuns) / j.runs) * 100).toFixed(0)}%`) },
+                { key: "ratio", header: "Success", align: "right", render: (j) => mono(j.runs ? `${(((j.runs - j.failedRuns) / j.runs) * 100).toFixed(0)}%` : "–") },
                 { key: "cost", header: "Cost of failures", align: "right", render: (j) => <span className="tabular font-mono font-semibold">{usdExact(j.failedCostUsd)}</span> },
               ]}
             />
@@ -118,6 +124,7 @@ export default function JobCosts() {
           {view === "retries" ? (
             <DataTable<Job>
               caption={current.title}
+              empty={<p className="rounded-card border border-dashed border-line-strong p-6 text-center text-sm text-ink-muted">No run needed a repair in this date range.</p>}
               rows={topJobs.filter((j) => j.repairs > 0).sort((a, b) => b.repairCostUsd - a.repairCostUsd)}
               rowKey={(j) => j.jobId}
               columns={[

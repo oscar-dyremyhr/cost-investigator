@@ -64,6 +64,8 @@ export function CostReportDocument({ report }: { report: CostReport }) {
   let number = 1;
   const next = () => ++number;
   const budgetPercent = report.budget.amount ? (report.budget.projection / report.budget.amount) * 100 : 0;
+  const compared = Boolean(report.comparison && report.previousPeriodListCost);
+  const showBudget = has("budget") && report.budget.amount > 0;
 
   return (
     <article className="report-preview mx-auto max-w-5xl rounded-card border border-line bg-surface p-6 text-sm leading-6 text-ink shadow-card sm:p-10" data-report-id={report.id}>
@@ -78,9 +80,9 @@ export function CostReportDocument({ report }: { report: CostReport }) {
         <p className="mt-3 text-2xl font-semibold">{report.organization}</p>
         <div className="mt-8 grid gap-4 sm:grid-cols-3">
           {[
-            ["Estimated list cost", money(report.estimatedListCost), `${change >= 0 ? "+" : ""}${change.toFixed(1)}% vs the same days last month`],
+            ["Estimated list cost", money(report.estimatedListCost), compared ? `${change >= 0 ? "+" : ""}${change.toFixed(1)}% vs ${report.comparison}` : "List-price estimate"],
             ["Usage", count(report.dbus), "DBUs · DBU rows only"],
-            report.budget.amount ? ["Projected month end", money(report.budget.projection), `${budgetPercent.toFixed(0)}% of the ${money(report.budget.amount)} budget`] : ["Workspaces", String(report.workspaces), "Included in this report"],
+            showBudget ? ["Projected end of current month", money(report.budget.projection), `${budgetPercent.toFixed(0)}% of the ${money(report.budget.amount)} budget`] : ["Workspaces", String(report.workspaces), "Included in this report"],
           ].map(([label, value, sub]) => (
             <div key={label} className="rounded-2xl border border-line bg-paper p-5">
               <p className="text-xs text-ink-muted">{label}</p>
@@ -100,8 +102,9 @@ export function CostReportDocument({ report }: { report: CostReport }) {
       <Section number={1} title="Summary">
         <p>
           <strong>{report.organization}</strong> used an estimated {money(report.estimatedListCost)} at list price in {report.period}, across {report.workspaces} workspaces
-          and {count(report.records)} usage records. That is {change >= 0 ? "up" : "down"} {Math.abs(change).toFixed(1)}% on the same days last month.
-          {report.budget.amount ? ` At this rate the month ends near ${money(report.budget.projection)}, which is ${budgetPercent.toFixed(0)}% of the budget.` : ""}
+          and {count(report.records)} usage records.
+          {compared ? ` That is ${change >= 0 ? "up" : "down"} ${Math.abs(change).toFixed(1)}% on ${report.comparison}.` : ""}
+          {showBudget ? ` The current month is on course for ${money(report.budget.projection)}, which is ${budgetPercent.toFixed(0)}% of the budget.` : ""}
           {report.recommendations.length ? ` ${report.recommendations.length} findings are open or planned.` : ""}
         </p>
         {report.note ? (
@@ -149,9 +152,9 @@ export function CostReportDocument({ report }: { report: CostReport }) {
       ) : null}
 
       {has("budget") ? (
-        <Section number={next()} title="Budget and alerts" lead="A simple run rate: spend so far, divided by days passed, times days in the month.">
+        <Section number={next()} title="Budget and alerts" lead="For the current month, whatever period the report covers. The projection is a simple run rate: spend so far, divided by days passed, times days in the month. Alerts look at the last 30 days.">
           <div className="grid gap-4 sm:grid-cols-3">
-            {[["Monthly budget", money(report.budget.amount)], ["Projected month end", money(report.budget.projection)], ["Alert threshold", `${report.budget.alertAt}% · ${money((report.budget.amount * report.budget.alertAt) / 100)}`]].map(([label, value]) => (
+            {[["Monthly budget", money(report.budget.amount)], ["Projected end of current month", money(report.budget.projection)], ["Alert threshold", `${report.budget.alertAt}% · ${money((report.budget.amount * report.budget.alertAt) / 100)}`]].map(([label, value]) => (
               <div key={label} className="rounded-2xl border border-line p-4">
                 <p className="text-xs text-ink-muted">{label}</p>
                 <p className="tabular mt-1 font-mono text-xl font-bold">{value}</p>

@@ -11,6 +11,15 @@ export const useRecommendations = create<{ statuses: Record<string, Recommendati
   }),
 );
 
+/** The date range every usage page shows. */
+export const useRange = create<{ choice: import("@/lib/range").RangeChoice }>()(
+  persist(() => ({ choice: { preset: "mtd" } as import("@/lib/range").RangeChoice }), {
+    name: "cost-investigator-range",
+    version: 1,
+    storage: createJSONStorage(() => localStorage),
+  }),
+);
+
 export type AlertOverride = { threshold?: number; enabled?: boolean };
 
 /** Per-rule overrides of the default alert rules. */
@@ -44,4 +53,5 @@ export function resetDemo() {
   useRecommendations.setState({ statuses: {} });
   useAlertRules.setState({ overrides: {} });
   useTeam.setState({ invited: [] });
+  useRange.setState({ choice: { preset: "mtd" } });
 }

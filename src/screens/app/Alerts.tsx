@@ -10,11 +10,11 @@ import { useAlertRules, type AlertOverride } from "@/store/app";
 import { Page, PageHeader, SampleBadge, SourceNote } from "./parts";
 
 const about: Record<AlertKind, { when: (r: AlertRule) => string; reads: string; value: (n: number) => string }> = {
-  workspace_serverless: { when: (r) => `Any workspace spends more than ${usd(r.threshold)} on serverless jobs and notebooks in the period.`, reads: "Grouped by workspace_id", value: usdExact },
-  user_serverless: { when: (r) => `Any user spends more than ${usd(r.threshold)} on serverless jobs and notebooks in the period.`, reads: "Grouped by identity_metadata.run_as", value: usdExact },
-  job_serverless: { when: (r) => `Any serverless job costs more than ${usd(r.threshold)} in the period.`, reads: "Grouped by workspace_id and job_id", value: usdExact },
+  workspace_serverless: { when: (r) => `Any workspace spends more than ${usd(r.threshold)} on serverless jobs and notebooks in the last 30 days.`, reads: "Grouped by workspace_id", value: usdExact },
+  user_serverless: { when: (r) => `Any user spends more than ${usd(r.threshold)} on serverless jobs and notebooks in the last 30 days.`, reads: "Grouped by identity_metadata.run_as", value: usdExact },
+  job_serverless: { when: (r) => `Any serverless job costs more than ${usd(r.threshold)} in the last 30 days.`, reads: "Grouped by workspace_id and job_id", value: usdExact },
   daily_spike: { when: (r) => `The latest day is more than ${r.threshold}% above the average of the seven days before it.`, reads: "Grouped by usage_date", value: (n) => `+${pct(n)}` },
-  tag_coverage: { when: (r) => `Less than ${r.threshold}% of list cost carries a custom tag.`, reads: "From custom_tags", value: (n) => pct(n, 0) },
+  tag_coverage: { when: (r) => `Less than ${r.threshold}% of list cost in the last 30 days carries a custom tag.`, reads: "From custom_tags", value: (n) => pct(n, 0) },
   untagged_endpoints: { when: () => "A model serving endpoint has usage but no business_unit tag.", reads: "From usage_metadata.endpoint_name and custom_tags", value: usd },
 };
 
@@ -39,7 +39,7 @@ export default function Alerts() {
       />
 
       <section aria-label="Summary" className="grid gap-4 sm:grid-cols-3">
-        <StatTile label="Firing now" value={String(firing.length + (budgetFiring ? 1 : 0))} sub="On the sample period" foot="Including the budget alert" icon={<BellRing aria-hidden />} />
+        <StatTile label="Firing now" value={String(firing.length + (budgetFiring ? 1 : 0))} sub="Over the last 30 days" foot="Including the budget alert" icon={<BellRing aria-hidden />} />
         <StatTile label="Rules on" value={`${enabled.length} of ${alerts.length}`} sub="Checked on every data refresh" foot="Usage arrives within about 12 hours" />
         <StatTile label="Delivery" value="Not connected" sub="Email and chat are not set up in this demo" foot="Results are shown on this page only" />
       </section>
@@ -119,7 +119,7 @@ export default function Alerts() {
       </ul>
 
       <SourceNote tables={["system.billing.usage", "system.billing.list_prices"]} href="https://docs.databricks.com/aws/en/admin/system-tables/serverless-billing" linkLabel="Serverless alert queries">
-        The three serverless rules follow the alert queries in the Databricks serverless cost guide, which look at the last 30 days; this demo checks the 11-day sample period.
+        The three serverless rules follow the alert queries in the Databricks serverless cost guide, and look at the last 30 days of cached usage, whatever date range other pages show.
         In a live setup each rule would run as a Databricks SQL alert or from this app on a schedule. Rules and thresholds are saved in this browser.
       </SourceNote>
     </Page>

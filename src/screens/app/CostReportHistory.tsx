@@ -81,7 +81,7 @@ export default function CostReportHistory() {
               { key: "d", header: "Change", align: "right", render: (p) => <span className="tabular font-mono font-semibold">{signed(p.after - p.before)}</span> },
             ]}
           />
-          <p className="mt-3 text-xs leading-5 text-ink-muted">Both snapshots use list prices. In this demo they come from the same sample period, so the change is zero unless the sample data changed.</p>
+          <p className="mt-3 text-xs leading-5 text-ink-muted">Both snapshots use list prices. Compare reports that cover periods of similar length, such as last month against this month so far.</p>
         </SectionCard>
       ) : compareIds.length === 1 ? (
         <p className="rounded-xl bg-brand-soft px-4 py-3 text-sm">Pick one more report to compare.</p>

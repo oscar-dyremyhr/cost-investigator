@@ -3,53 +3,55 @@
 import Link from "next/link";
 import { ArrowRight, BellRing, Bot, BriefcaseBusiness, CircleDollarSign, Gauge, Lightbulb, Zap } from "lucide-react";
 import { BudgetGauge, ButtonLink, StatTile, StatusPill, Term } from "@/design-system/components";
-import { latestDaySpike } from "@/lib/alerts";
 import { change, num, pct, usd } from "@/lib/format";
 import { sortRecommendations, statusOf } from "@/lib/recommendations";
 import { serverlessSpend } from "@/lib/serverless";
-import { useAlerts, useBudget, useRecommendationStatuses, useRecommendationSummary } from "@/lib/use-app-state";
-import { billingSummary, dailyListCost, productBreakdown, recordTypes, savingsRecommendations, tagCoverage, topJobs } from "@/mocks/service";
-import { BarList, DailyBars, Page, PageHeader, SampleBadge, SectionCard, SourceNote } from "./parts";
+import { useAlerts, useBudget, useRecommendationStatuses, useRecommendationSummary, useUsage } from "@/lib/use-app-state";
+import { recordTypes, savingsRecommendations } from "@/mocks/service";
+import { BarList, DailyBars, Page, PageHeader, SectionCard, SourceNote } from "./parts";
+import { RangePicker } from "./RangePicker";
 
-const daily = dailyListCost.map((d) => ({ label: d.label, value: d.listCostUsd }));
 const linkClass = "inline-flex items-center gap-1 text-sm font-semibold text-brand";
 
 export default function Dashboard() {
+  const { usage, label, previousUsd, previousLabel } = useUsage();
   const { budget, projection, projectedPercent, daysElapsed, daysInMonth } = useBudget();
+  const daily = usage.daily.map((d) => ({ label: d.label, value: d.listCostUsd }));
   const alerts = useAlerts();
   const statuses = useRecommendationStatuses();
   const recs = useRecommendationSummary();
   const firing = alerts.filter((a) => a.rule.enabled && a.result.triggered);
   const enabled = alerts.filter((a) => a.rule.enabled).length;
-  const delta = change(billingSummary.estimatedListCostUsd, billingSummary.previousComparablePeriodUsd);
-  const spike = latestDaySpike();
+  const delta = previousUsd === null ? undefined : change(usage.totalUsd, previousUsd);
+  const spike = usage.spikePercent;
+  const lastDay = daily[daily.length - 1]?.label ?? "";
   const topRecs = sortRecommendations(savingsRecommendations, statuses)
     .filter((r) => statusOf(statuses, r.id) === "open")
     .slice(0, 3);
-  const serverless = serverlessSpend();
-  const serving = productBreakdown.find((p) => p.product === "MODEL_SERVING")!;
-  const jobs = productBreakdown.find((p) => p.product === "JOBS")!;
+  const serverless = serverlessSpend(usage);
+  const serving = usage.products.find((p) => p.product === "MODEL_SERVING");
+  const jobs = usage.products.find((p) => p.product === "JOBS");
 
   return (
     <Page>
       <PageHeader
-        eyebrow={`Overview · ${billingSummary.periodLabel}`}
+        eyebrow={`Overview · ${label}`}
         title="Where your Databricks spend stands"
         body="What was used, whether it is on pace, what to look at next and which alerts are firing. Every figure is an estimate at list price."
-        actions={<SampleBadge />}
+        actions={<RangePicker />}
       />
 
       <section aria-label="Summary" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile
           label="Estimated list cost"
-          value={usd(billingSummary.estimatedListCostUsd)}
+          value={usd(usage.totalUsd)}
           delta={delta}
-          sub="vs the same days last month"
-          foot={`${num(billingSummary.dbuQuantity)} DBUs · ${billingSummary.workspaceCount} workspaces`}
+          sub={delta === undefined ? "No earlier data cached to compare with" : `vs ${previousLabel}`}
+          foot={`${num(usage.dbus)} DBUs · ${usage.workspaceCount} workspaces`}
           icon={<CircleDollarSign aria-hidden />}
         />
         <StatTile
-          label="Projected month end"
+          label="Projected month end (this month)"
           value={usd(projection)}
           sub={`${pct(projectedPercent, 0)} of the ${usd(budget.amount)} budget`}
           foot={`Run rate from ${daysElapsed} of ${daysInMonth} days`}
@@ -66,7 +68,7 @@ export default function Dashboard() {
           label="Alerts firing"
           value={`${firing.length} of ${enabled}`}
           sub={firing.length > 0 ? firing.map((a) => a.rule.name).slice(0, 2).join(" · ") : "All enabled rules are quiet"}
-          foot="Checked against the sample period"
+          foot="Checked over the last 30 days"
           icon={<BellRing aria-hidden />}
         />
       </section>
@@ -75,12 +77,12 @@ export default function Dashboard() {
         <SectionCard
           title="Daily list cost"
           body="One bar per usage date, in US dollars."
-          action={spike > 25 ? <StatusPill status="watch" size="sm" label={`Nov 11 is ${pct(spike, 0)} above the 7-day average`} /> : undefined}
+          action={spike > 25 ? <StatusPill status="watch" size="sm" label={`${lastDay} is ${pct(spike, 0)} above the 7-day average`} /> : undefined}
         >
           <DailyBars data={daily} label="List cost" format={usd} axisFormat={(v) => `$${(v / 1000).toFixed(0)}k`} flagIndex={spike > 25 ? daily.length - 1 : undefined} />
           <p className="mt-3 border-t border-line pt-3 text-xs leading-5 text-ink-muted">
             Usage quantity times the matching <Term k="listPrice">list price</Term>, summed by <code className="font-mono">usage_date</code>. Corrections are netted
-            in: {recordTypes.retraction} retractions and {recordTypes.restatement} restatements this period.
+            in. Cache last refreshed {recordTypes.latestIngestion}.
           </p>
         </SectionCard>
 
@@ -88,7 +90,7 @@ export default function Dashboard() {
           <div className="flex flex-col items-center">
             <BudgetGauge percent={projectedPercent} alertAt={budget.alertAt} size={210} />
             <p className="mt-3 text-center text-sm text-ink-muted">
-              {usd(billingSummary.estimatedListCostUsd)} spent so far. Alert set at {budget.alertAt}% ({usd((budget.amount * budget.alertAt) / 100)}).
+              This month so far, whatever range is shown above. Alert set at {budget.alertAt}% ({usd((budget.amount * budget.alertAt) / 100)}).
             </p>
           </div>
         </SectionCard>
@@ -96,7 +98,7 @@ export default function Dashboard() {
 
       <div className="grid gap-5 xl:grid-cols-2">
         <SectionCard title="Spend by product" body="Grouped by billing_origin_product, which separates products that share a SKU." action={<Link href="/investigations" className={linkClass}>Billing breakdown <ArrowRight className="size-3.5" aria-hidden /></Link>}>
-          <BarList format={usd} rows={productBreakdown.map((p) => ({ key: p.product, label: p.label, sub: `${p.product} · ${num(p.usageQuantity)} ${p.usageUnit} · ${p.share}%`, value: p.estimatedListCostUsd }))} />
+          <BarList format={usd} rows={usage.products.map((p) => ({ key: p.product, label: p.label, sub: `${p.product} · ${num(p.usageQuantity)} ${p.usageUnit} · ${p.share}%`, value: p.estimatedListCostUsd }))} />
         </SectionCard>
 
         <div className="space-y-5">
@@ -135,9 +137,9 @@ export default function Dashboard() {
 
       <section aria-label="Workload views" className="grid gap-4 md:grid-cols-3">
         {[
-          { href: "/jobs", icon: BriefcaseBusiness, title: "Jobs", value: usd(jobs.estimatedListCostUsd), note: `${topJobs.reduce((s, j) => s + j.failedRuns, 0)} failed runs cost ${usd(topJobs.reduce((s, j) => s + j.failedCostUsd, 0))}` },
-          { href: "/serverless", icon: Zap, title: "Serverless", value: usd(serverless.totalUsd), note: `${serverless.byUser.length - 1} users · jobs and notebooks` },
-          { href: "/model-serving", icon: Bot, title: "Model serving", value: usd(serving.estimatedListCostUsd), note: `${num(serving.usageQuantity)} DBUs across 5 endpoints` },
+          { href: "/jobs", icon: BriefcaseBusiness, title: "Jobs", value: usd(jobs?.estimatedListCostUsd ?? 0), note: `${usage.jobs.reduce((s, j) => s + j.failedRuns, 0)} failed runs cost ${usd(usage.jobs.reduce((s, j) => s + j.failedCostUsd, 0))}` },
+          { href: "/serverless", icon: Zap, title: "Serverless", value: usd(serverless.totalUsd), note: `${serverless.byUser.length} users · jobs and notebooks` },
+          { href: "/model-serving", icon: Bot, title: "Model serving", value: usd(serving?.estimatedListCostUsd ?? 0), note: `${num(serving?.usageQuantity ?? 0)} DBUs across ${usage.endpoints.length} endpoints` },
         ].map(({ href, icon: Icon, title, value, note }) => (
           <Link key={href} href={href} className="group rounded-card border border-line bg-surface p-5 shadow-card hover:border-brand">
             <div className="flex items-center justify-between">
@@ -153,10 +155,10 @@ export default function Dashboard() {
       <SectionCard title="Who owns the spend" body="Share of list cost that carries at least one custom tag.">
         <div className="grid items-center gap-6 md:grid-cols-[auto_1fr]">
           <div>
-            <p className="tabular font-mono text-4xl font-bold">{tagCoverage[0].share}%</p>
-            <p className="mt-1 text-xs text-ink-muted">tagged · {usd(tagCoverage[1].estimatedListCostUsd)} has no tag</p>
+            <p className="tabular font-mono text-4xl font-bold">{usage.taggedPercent.toFixed(0)}%</p>
+            <p className="mt-1 text-xs text-ink-muted">tagged · {usd(usage.untaggedUsd)} has no tag</p>
           </div>
-          <BarList format={usd} rows={tagCoverage.map((t) => ({ key: t.label, label: t.label, value: t.estimatedListCostUsd }))} />
+          <BarList format={usd} rows={[{ key: "tagged", label: "Has at least one custom tag", value: usage.taggedUsd }, { key: "untagged", label: "No custom tags recorded", value: usage.untaggedUsd }]} />
         </div>
       </SectionCard>
 
