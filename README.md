@@ -36,12 +36,17 @@ src/
 │   └── report/             # Print-ready cost report document and viewer
 ├── content/                # Product copy/configuration, pricing, onboarding and report content
 │   ├── copy.ts              # Central entry point for reusable user-facing content
+│   ├── ui.ts                # Strings used by the design-system components
+│   ├── glossary.ts          # Plain-language definitions for cost terms (used by Term tooltips)
 │   ├── pricing.ts           # Plan prices and features
 │   ├── landing.ts           # Marketing platform and process cards
 │   ├── pricing-copy.ts      # Pricing FAQ content
 │   ├── onboarding.ts        # Setup steps, workspace examples and grant snippet
 │   └── setup-guide.ts       # Permission matrix and setup SQL
-├── design-system/           # Shared design tokens
+├── design-system/
+│   ├── tokens.css           # The only place colours are defined (light, dark, print)
+│   └── components/          # Button, StatusPill, BudgetGauge, StatTile, EvidenceCard, Stamp, Stepper,
+│                            # Drawer, Modal, DataTable, PlanCard, EmptyState, Penny, Toast, Term …
 ├── lib/                    # Cost report snapshots and formatting helpers
 └── mocks/
     ├── fixtures/            # Illustrative billing and job data
@@ -49,6 +54,16 @@ src/
 ```
 
 Route files stay deliberately small; screen composition lives under `src/screens`. Keep reusable copy, options, and domain content under `src/content`; plan pricing remains in `pricing.ts`. Screens should get sample data through `src/mocks/service.ts`, so the demo fixtures can later be replaced behind one boundary. Cost reports are stored as local snapshots; browser print provides PDF export in this prototype. Colors stay in `src/design-system/tokens.css`.
+
+## Design system
+
+Open `/styleguide` to see every colour token and component in light and dark mode. The component library lives in `src/design-system/components` and is imported from its index:
+
+```tsx
+import { Button, StatTile, StatusPill } from "@/design-system/components";
+```
+
+It follows the Receipts (sp1) design system: the same tokens, type and motion, with cost-specific pieces added (`BudgetGauge`, `StatTile`, `DeltaPill`, the Penny mascot). Statuses are exactly three, always with an icon and a word: *On track*, *Keep an eye on it*, *Needs action*. The existing app and marketing screens still use hand-written markup; new work should use these components.
 
 ## Stack
 
