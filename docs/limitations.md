@@ -14,17 +14,18 @@ What a reader should not assume about this prototype.
 ## Unverified
 
 - **The SQL in `src/data/sql.ts` has not been run against a live workspace.** Column names and joins follow the Databricks guides for billing, pricing, job cost, model serving cost and serverless cost.
-- **The query sketches shown beside recommendations** are illustrations. Two of them use `system.compute` tables, which were not checked against the documentation.
+- **The SQL shown beside each recommendation** is the equivalent check written for Databricks; it is not what ran (the finding comes from the cache) and has not been run. `resourcesSql` and two of those checks use `system.compute` tables, which were not checked against the documentation.
 
 ## Estimates, not facts
 
 - **Costs are at list price.** Discounts, credits, entitlements and taxes mean the invoice can differ.
 - **The month-end projection is a simple run rate.** It assumes the rest of the month looks like the days so far.
-- **Recommendation ranges are sample hypotheses.** A saving only counts when later usage is lower.
+- **A recommendation's amount is observed cost scaled to a month**, not a saving. Two rules (auto-stop, auto-termination) show no amount because idle time is not read yet.
+- **Negotiated prices are what you typed in.** They apply a flat percentage per product; credits, commitments and taxes are not modelled.
 
 ## Not built
 
-- Recommendations computed from data. They are a fixed list and do not change with the date range.
+- More recommendation rules. Five exist; overlapping runs, compute sizing and serverless performance mode do not.
 - A backend, sign-in, payments.
 - Revocable report links. A link carries the whole report and keeps working after the report is deleted.
 - Scheduled reports and digests.

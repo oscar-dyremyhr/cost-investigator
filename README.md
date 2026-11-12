@@ -22,8 +22,10 @@ Open http://localhost:3000. Everything runs on sample data for a fictional compa
 | `/jobs` | Most expensive jobs and runs, 7-day spend trend, cost of failed runs and repairs | plus `system.lakeflow.jobs`, `system.lakeflow.job_run_timeline` |
 | `/serverless` | Serverless jobs and notebooks by user, workspace, job and notebook; DBUs by performance mode | `usage_metadata`, `identity_metadata.run_as` |
 | `/model-serving` | Cost per endpoint, serving type, start-up DBUs, tag coverage | `usage_metadata.endpoint_name`, `product_features.serving_type` |
+| `/compute` | SQL warehouses, all-purpose clusters and pipelines with cost, owner, tag and stop settings | `usage_metadata.warehouse_id`, `cluster_id`, `dlt_pipeline_id`, `system.compute` |
+| `/tags` | Spend by any tag key, and the workloads missing that tag | `custom_tags` |
 | `/prices` | Default, promotional and effective list price per SKU, and price changes | `system.billing.list_prices` |
-| `/recommendations` | Findings to decide on, each with its rule, query sketch and sample rows | billing, lakeflow and compute tables |
+| `/recommendations` | Findings computed from the last 30 days by five rules, each with its threshold and the figures behind it | billing, lakeflow and compute tables |
 | `/alerts` | Threshold rules (serverless per workspace, user and job; daily spike; tags) | modelled on the serverless alert queries |
 | `/budgets` | Monthly budget and run-rate projection | |
 | `/settings` | Team invites and roles, organization name, Databricks connection, Reset demo | |
@@ -44,13 +46,13 @@ Databricks system tables ──SQL──▶ CostDataSource ──loadCache──
         (src/data/sql.ts)        (src/data/contract.ts)                    (src/mocks/query.ts)
 ```
 
-- `src/data/contract.ts` defines the rows, using Databricks' own column names (`usage_date`, `sku_name`, `billing_origin_product`, `usage_quantity`, `job_id`, `endpoint_name`, `run_as`, `custom_tags`, `is_serverless`, `serving_type`, `performance_target` …), and a five-method `CostDataSource`: `usageDaily`, `listPrices`, `jobs`, `jobHealthDaily`, `topJobRuns`.
+- `src/data/contract.ts` defines the rows, using Databricks' own column names (`usage_date`, `sku_name`, `billing_origin_product`, `usage_quantity`, `job_id`, `endpoint_name`, `run_as`, `custom_tags`, `is_serverless`, `serving_type`, `performance_target` …), and a six-method `CostDataSource`: `usageDaily`, `listPrices`, `jobs`, `jobHealthDaily`, `topJobRuns`, `resources`.
 - `src/data/sql.ts` holds the SQL for each method. Cost is `usage_quantity × pricing.effective_list.default`, joined on SKU, cloud, unit and the price period, with signed quantities summed so corrections net out.
 - `src/mocks/cache.ts` is the sample: 72 days (Sep 1 – Nov 11, 2026) for a fictional account with 4 workspaces, 9 jobs, 3 SQL warehouses, 2 clusters, 2 pipelines, 5 serving endpoints and 4 serverless notebooks, including a price change and a promotion.
 
 To plug in a real account: implement `CostDataSource` by running each statement on a SQL warehouse (for example with the Statement Execution API, signed in as a read-only service principal), call `loadCache` on a schedule, and pass that cache to `queryUsage` in place of `sampleCache`. The screens do not change.
 
-What is not real yet: the SQL has not been run against a live workspace, so test it on yours first. Recommendations are still a fixed sample list rather than rules computed from the cache. The prices are invented. Job cost only covers job compute and serverless, and reads one cloud region at a time.
+What is not real yet: the SQL has not been run against a live workspace, so test it on yours first. The prices are invented. Job cost only covers job compute and serverless, and reads one cloud region at a time.
 
 The date range (this month, last month, last 7 or 30 days, this quarter, this year, or custom dates) is chosen at the top of each usage page and in the report builder. Alerts always look at the last 30 days and the budget at the current month.
 
@@ -111,6 +113,6 @@ A real connector can query `system.billing.usage` and `system.billing.list_price
 
 This prototype has no live integration, authentication, checkout or financial advice. Revocable or access-controlled sharing would need a hosted report service. Onboarding uses a sample connection check; account preferences are saved locally in the browser, and no Databricks credentials are collected.
 
-## Savings recommendations
+## Recommendations
 
-The job-cost view includes illustrative, rule-based recommendations: schedule overlap review, retry review, and tag coverage improvements. Opportunity ranges in the prototype are sample hypotheses only; they are not computed from customer data, guaranteed savings, or realized savings. In a live integration, schedule overlap and failed/retried run signals should come from `system.lakeflow.job_run_timeline` and related job metadata, while cost-at-risk should be calculated from matched billing usage and effective list prices. Validate each action with the customer and compare subsequent signed usage records to measure the realized change. Recommendations should remain explainable with a cited signal, affected job, suggested next step, confidence/coverage note, and a way to mark the finding reviewed.
+Recommendations are computed from the last 30 days of the cache by five rules in `src/lib/recommend.ts`: recurring failed runs, week-over-week job growth, a long warehouse auto-stop, a cluster with auto-termination off, and untagged spend. Each finding names its threshold, the affected workload and its owner, a next step, and the figures that triggered it. Where an amount is shown it is observed cost scaled to a month, not a guaranteed or realized saving; the two compute rules show no amount because idle time is not read yet. Decisions (plan, done, dismiss) are saved per finding. See [docs/features.md](docs/features.md).

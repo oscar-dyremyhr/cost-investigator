@@ -210,7 +210,7 @@ export function queryUsage(requested: DateRange, cache: CostCache = sampleCache)
   /** Workloads that lack a given tag key (or any tag at all when no key is given), largest first. */
   const missingTag = (key?: string) =>
     [...groupBy(rows.filter((r) => (key ? !(key in r.custom_tags) : !isTagged(r))), (r) => `${workloadOf(r, cache).kind}:${workloadOf(r, cache).id}`)]
-      .map(([, group]) => ({ ...workloadOf(group[0], cache), workspaceId: group[0].workspace_id, owner: group[group.length - 1].run_as ?? "Unknown", product: group[0].billing_origin_product, usd: cents(cost(group)) }))
+      .map(([, group]) => ({ ...workloadOf(group[0], cache), workspaceId: group[0].workspace_id, owner: group[group.length - 1].run_as ?? "No owner recorded", product: group[0].billing_origin_product, usd: cents(cost(group)) }))
       .sort((a, b) => b.usd - a.usd);
 
   return {

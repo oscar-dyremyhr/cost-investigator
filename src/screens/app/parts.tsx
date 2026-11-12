@@ -41,7 +41,7 @@ export function SectionCard({
   flush?: boolean;
 }) {
   return (
-    <section className={cn("rounded-card border border-line bg-surface shadow-card", className)}>
+    <section className={cn("min-w-0 rounded-card border border-line bg-surface shadow-card", className)}>
       <div className="flex flex-wrap items-start justify-between gap-3 p-5 md:px-6">
         <div>
           <h2 className="text-lg font-bold">{title}</h2>

@@ -4,7 +4,7 @@ This describes how to replace the sample cache with data from a real account. Th
 
 ## What the app needs
 
-Five result sets, defined by `CostDataSource` in `src/data/contract.ts`:
+Six result sets, defined by `CostDataSource` in `src/data/contract.ts`:
 
 | Method | Statement in `src/data/sql.ts` | Reads |
 | --- | --- | --- |
@@ -13,6 +13,7 @@ Five result sets, defined by `CostDataSource` in `src/data/contract.ts`:
 | `jobs()` | `jobsSql` | `system.lakeflow.jobs` |
 | `jobHealthDaily(range)` | `jobHealthDailySql` | `system.lakeflow.job_run_timeline`, billing |
 | `topJobRuns(range)` | `topJobRunsSql` | billing, `system.lakeflow.job_run_timeline` |
+| `resources()` | `resourcesSql` | `system.compute.warehouses`, `system.compute.clusters`, `system.lakeflow.pipelines` |
 
 `:from` and `:to` are date parameters.
 
@@ -24,6 +25,7 @@ Sign in as a **service principal** with OAuth (machine to machine). It needs:
 GRANT USE CATALOG ON CATALOG system TO `cost-investigator-reader`;
 GRANT USE SCHEMA, SELECT ON SCHEMA system.billing TO `cost-investigator-reader`;
 GRANT USE SCHEMA, SELECT ON SCHEMA system.lakeflow TO `cost-investigator-reader`;
+GRANT USE SCHEMA, SELECT ON SCHEMA system.compute TO `cost-investigator-reader`;
 ```
 
 and "Can use" on one SQL warehouse. It needs no access to business data and no admin role. The `/setup` page in the app is the guide to hand to the engineer who sets this up.
@@ -56,11 +58,12 @@ Corrections arrive as a negative `RETRACTION` row and a `RESTATEMENT` row. Summi
 - **`run_as` means different things** by workload: the job's run-as identity, the person who started a serverless notebook session, the creator of an all-purpose cluster.
 - **Repair cost is an approximation** in `jobHealthDailySql`: a repaired run's cost is shared evenly over its attempts.
 - **Products outside the six in the sample** (for example `VECTOR_SEARCH` or `APPS`) will appear under their code name. Add a friendly label in `src/mocks/fixtures/cost-data.ts`.
+- **`resourcesSql` is the least certain statement.** The three tables it reads were not checked against the documentation. If it fails, return an empty list: the app still works, showing IDs instead of names and no stop settings (so the two compute rules stay quiet).
 - **Workspace names are not in billing.** The app shows `Workspace <id>` unless a name is supplied.
 
 ## Still to build for a live product
 
-- Recommendations computed from the cache (and from `system.compute` for warehouse and cluster settings) instead of the fixed list.
+- Idle time for warehouses and clusters (`system.compute.warehouse_events`, `node_timeline`, `system.query.history`), so the two compute recommendations can carry an amount.
 - Alert delivery (email, chat) and running the rules on refresh.
 - A hosted store for reports, if links should be revocable.
 - Sign-in, and roles that actually restrict access.
