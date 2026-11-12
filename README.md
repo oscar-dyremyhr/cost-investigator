@@ -2,6 +2,8 @@
 
 A front-end prototype for turning Databricks billing records into a clear usage and list-cost breakdown. The dashboard uses illustrative Northstar Commerce data and does not make live Databricks calls.
 
+Full documentation is in [`docs/`](docs/README.md).
+
 ## Run locally
 
 ```bash
